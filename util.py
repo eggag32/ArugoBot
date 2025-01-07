@@ -8,6 +8,7 @@ import random
 problems = None
 
 def get_problems():
+    global problems
     URL = "https://codeforces.com/api/problemset.problems"
     response = urlopen(URL)
     response_data = json.loads(response.read())
@@ -21,16 +22,14 @@ async def parse_data():
     while True:
         try:
             print("Parsing data...")
-
             get_problems()
-
             print("Data parsing complete.")
         except Exception as e:
             print(f"Error during parsing: {e}")
 
         await asyncio.sleep(3600)
 
-def handle_exists(handle):
+def handle_exists_on_cf(handle):
     try:
         URL = "https://codeforces.com/api/user.info?handles=" + handle
         response = urlopen(URL)
@@ -39,11 +38,23 @@ def handle_exists(handle):
     except:
         return False
 
-def handle_linked(server_id: int, user_id: int, handle: str):
-    pass
+async def handle_exists(server_id: int, user_id: int, handle: str):
+    print("handle_exists")
+    async with aiosqlite.connect("bot_data.db") as db:
+        async with db.execute("SELECT user_id FROM users WHERE server_id = ? AND handle = ?", (server_id, handle)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return True
+            return False
 
-def handle_exists(server_id: int, user_id: int, handle: str):
-    pass
+async def handle_linked(server_id: int, user_id: int, handle: str):
+    print("handle_linked")
+    async with aiosqlite.connect("bot_data.db") as db:
+        async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return True
+            return False
 
 async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
     # 1 - ok
@@ -65,4 +76,3 @@ async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
     # for 60 seconds we monitor
     
     # if bad, then bad, if good, then we add it to the database (check when inserting to make sure)
-    pass

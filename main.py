@@ -2,6 +2,7 @@ import os
 import discord
 from discord.ext import commands
 import asyncio
+import aiosqlite
 import util
 
 intents = discord.Intents.default()
@@ -9,10 +10,26 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="=", intents=intents)
 
+async def init_database():
+    async with aiosqlite.connect("bot_data.db") as db:
+        await db.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            server_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            handle TEXT NOT NULL,
+            rating INTEGER NOT NULL,
+            history TEXT DEFAULT '[]',
+            rating_history TEXT DEFAULT '[]',
+            PRIMARY KEY (server_id, user_id)
+        );
+        """)
+        await db.commit()
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
     bot.loop.create_task(util.parse_data())
+    await init_database()
 
 @bot.command()
 async def ping(ctx):

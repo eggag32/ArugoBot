@@ -1,5 +1,5 @@
 from discord.ext import commands
-import ArugoBot.util as util
+import util
 
 class Register(commands.Cog):
     def __init__(self, bot):
@@ -7,20 +7,20 @@ class Register(commands.Cog):
 
     @commands.command()
     async def register(self, ctx, handle: str):
-        b = util.handle_exists(handle)
+        b = util.handle_exists_on_cf(handle)
         if not b:
             await ctx.send("Invalid handle.")
             return
         # check that it is not in the database already (for this server)
-        if util.handle_exists(ctx.guild.id, ctx.author.id, handle):
+        if await util.handle_exists(ctx.guild.id, ctx.author.id, handle):
             await ctx.send("Handle taken in this server.")
             return
         # check that user does not already have a handle
-        if util.handle_linked(ctx.guild.id, ctx.author.id, handle):
+        if await util.handle_linked(ctx.guild.id, ctx.author.id, handle):
             await ctx.send("You already linked a handle (use unlink if you wish to remove it).")
             return
         # now give them the verification challenge
-        ret = util.validate_handle(ctx, ctx.guild.id, ctx.author.id, handle)
+        ret = await util.validate_handle(ctx, ctx.guild.id, ctx.author.id, handle)
         if ret == 1:
             await ctx.send(f"Handle set to {handle}")
         elif ret == 2:
