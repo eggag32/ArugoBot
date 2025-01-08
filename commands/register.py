@@ -22,7 +22,7 @@ class Register(commands.Cog):
         # now give them the verification challenge
         ret = await util.validate_handle(ctx, ctx.guild.id, ctx.author.id, handle)
         if ret == 1:
-            await ctx.send(f"Handle set to {handle}")
+            await ctx.send(f"Handle set to {handle}.")
         elif ret == 2:
             await ctx.send("Verification failed.")
         elif ret == 3:
