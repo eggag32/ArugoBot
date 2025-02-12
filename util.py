@@ -1,5 +1,4 @@
 from urllib.request import urlopen
-import requests
 import json
 import aiosqlite
 import asyncio
@@ -14,9 +13,7 @@ def get_problems():
     response = urlopen(URL)
     response_data = json.loads(response.read())
     problems = response_data["result"]["problems"]
-
-    with open('problems.json', 'w') as file:
-        json.dump(problems, file)
+    problems = [obj for obj in problems if "rating" in obj]
 
 async def parse_data():
     # every hour it will update the problems
@@ -72,6 +69,19 @@ def got_submission(handle: str, problem, t):
         print(f"Error during parsing: {e}")
         return False
 
+def get_solved(handle: str):
+    # I can speed this up by storing solved problems for each user in a database and updating but I'm lazy so I'll try this...
+    try:
+
+        URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
+        response = urlopen(URL)
+        response_data = json.loads(response.read())
+
+        return [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
+
+    except Exception as e:
+        print(f"Error when getting submissions: {e}")
+        return None
 
 async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
     # 1 - ok
