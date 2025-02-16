@@ -23,6 +23,14 @@ async def init_database():
             PRIMARY KEY (server_id, user_id)
         );
         """)
+        await db.execute("""
+        CREATE TABLE IF NOT EXISTS ac (
+            handle TEXT NOT NULL,
+            solved TEXT DEFAULT '[]',
+            last_sub INTEGER NOT NULL,
+            PRIMARY KEY (handle)  
+        );
+        """)
         await db.commit()
 
 @bot.event
