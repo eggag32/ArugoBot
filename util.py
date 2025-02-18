@@ -1,10 +1,8 @@
-from urllib.request import urlopen
 import json
 import discord
 import aiosqlite
 import asyncio
-import random
-import time
+from urllib.request import urlopen
 
 problems = None
 initialized = False
@@ -97,7 +95,7 @@ async def handle_exists_on_cf(handle):
         response = urlopen(URL)
         await asyncio.sleep(2)
         response_data = json.loads(response.read())
-        return response_data["status"] == "OK" and response_data["result"][0]["handle"] == handle
+        return response_data["status"] == "OK" and response_data["result"][0]["handle"].lower() == handle.lower()
     except:
         return False
 
@@ -124,156 +122,3 @@ async def handle_linked(server_id: int, user_id: int):
                 return False
     except Exception as e:
         print(f"Database error: {e}")
-
-async def unlink(server_id: int, user_id: int):
-    try:
-        async with aiosqlite.connect("bot_data.db") as db:
-            await db.execute("DELETE FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id))
-            await db.commit()
-    except Exception as e:
-        print(f"Database error: {e}")
-
-async def got_submission(handle: str, problem, t):
-    try:
-
-        URL = f"https://codeforces.com/api/contest.status?contestId={problem['contestId']}&asManager=false&from=1&count=10&handle={handle}"
-        response = urlopen(URL)
-        await asyncio.sleep(2)
-        response_data = json.loads(response.read())
-
-        for o in response_data["result"]:
-            if o["problem"]["index"] == problem["index"] and o["verdict"] == "COMPILATION_ERROR" and o["contestId"] == problem["contestId"]:
-                return o["creationTimeSeconds"] > t
-
-    except Exception as e:
-        print(f"Error during parsing: {e}")
-        return False
-
-async def get_solved(handle: str):
-    ret = []
-    new_last = -1
-    async with aiosqlite.connect("bot_data.db") as db:
-        async with db.execute("SELECT * FROM ac WHERE handle = ?", (handle, )) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                print("Small query.")
-                prev_last = row[2] 
-                cur_list = json.loads(row[1])
-                try:
-
-                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=20"
-                    response = urlopen(URL)
-                    await asyncio.sleep(2)
-                    response_data = json.loads(response.read())
-
-                    found = False
-                    first = False
-                    for sub in response_data["result"]:
-                        if first:
-                            new_last = sub["id"]
-                            first = True
-                        if sub["id"] != prev_last:
-                            if sub["verdict"] == "OK" and "contestId" in sub:
-                                cur_list.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
-                        else:
-                            found = True
-                            print("Small query worked.")
-                            ret = cur_list
-                            break
-                    
-                    if not found:
-                        URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
-                        response = urlopen(URL)
-                        await asyncio.sleep(2)
-                        response_data = json.loads(response.read())
-
-                        if (len(response_data["result"]) > 0):
-                            new_last = response_data["result"][0]["id"]
-
-                        ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
-
-                except Exception as e:
-                    print(f"Error when getting submissions: {e}")
-                    return None
-            else:
-                print("Large query.")
-                try:
-
-                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
-                    response = urlopen(URL)
-                    await asyncio.sleep(2)
-                    response_data = json.loads(response.read())
-
-                    if (len(response_data["result"]) > 0):
-                        new_last = response_data["result"][0]["id"]
-
-                    ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
-
-                except Exception as e:
-                    print(f"Error when getting submissions: {e}")
-                    return None
-    # write to db
-    if new_last != -1:
-        try:
-            async with aiosqlite.connect("bot_data.db") as db:
-                await db.execute("""
-                    INSERT OR REPLACE INTO ac (handle, solved, last_sub) 
-                    VALUES (?, ?, ?)
-                """, (handle, json.dumps(ret), new_last))
-                await db.commit()
-        except aiosqlite.Error as e:
-            print(f"Database error: {e}") 
-    return ret
-
-async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
-    # 1 - ok
-    # 2 - didn't receive
-    # 3 - handle exists
-    # 4 - you have a handle
-    # 5 - some other error
-
-    if problems is None:
-        try:
-            get_problems()    
-        except Exception as e:
-            print(f"Error during parsing: {e}")
-            return 5
-
-    problem = problems[random.randint(0, len(problems) - 1)]
-    t = time.time()
-    await ctx.send(f"Submit a compilation error to the following problem in the next 60 seconds:\nhttps://codeforces.com/problemset/problem/{problem['contestId']}/{problem['index']}")
-
-    await asyncio.sleep(60)
-    if not await got_submission(handle, problem, t):
-        return 2
-    async with aiosqlite.connect('bot_data.db') as db:
-        try:
-            await db.execute("BEGIN TRANSACTION")
-
-            async with db.execute('SELECT handle FROM users WHERE server_id = ? AND handle = ?', (server_id, handle)) as cursor:
-                existing_handle = await cursor.fetchone()
-
-            if existing_handle:
-                await db.rollback()
-                return 3
-
-            async with db.execute('SELECT handle FROM users WHERE server_id = ? AND user_id = ?', (server_id, user_id)) as cursor:
-                linked_handle = await cursor.fetchone()
-
-            if linked_handle:
-                await db.rollback()
-                return 4
-
-            history = "[]"
-            rating_history = "[]"
-            await db.execute(
-                'INSERT INTO users (server_id, user_id, handle, rating, history, rating_history) VALUES (?, ?, ?, ?, ?, ?)',
-                (server_id, user_id, handle, 1500, history, rating_history)
-            )
-
-            await db.commit()
-            return 1
-        except Exception as e:
-            await db.rollback()
-            print(f"Transaction failed: {e}")
-            return 5

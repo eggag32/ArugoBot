@@ -1,7 +1,11 @@
-from discord.ext import commands
 import util
 import discord
+import asyncio
+import aiosqlite
+import json
 import random
+from urllib.request import urlopen
+from discord.ext import commands
 
 class Suggest(commands.Cog):
     def __init__(self, bot):
@@ -28,7 +32,7 @@ class Suggest(commands.Cog):
 
         for h in handles:
             if await util.handle_exists_on_cf(h):
-                s.append(await util.get_solved(h))
+                s.append(await get_solved(h))
                 if s[-1] is None:
                     await ctx.send("Something went wrong. Try again in a bit.")
                     return
@@ -71,3 +75,79 @@ class Suggest(commands.Cog):
         
 async def setup(bot):
     await bot.add_cog(Suggest(bot))
+
+async def get_solved(handle: str):
+    ret = []
+    new_last = -1
+    async with aiosqlite.connect("bot_data.db") as db:
+        async with db.execute("SELECT * FROM ac WHERE handle = ?", (handle, )) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                print("Small query.")
+                prev_last = row[2] 
+                cur_list = json.loads(row[1])
+                try:
+
+                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=20"
+                    response = urlopen(URL)
+                    await asyncio.sleep(2)
+                    response_data = json.loads(response.read())
+
+                    found = False
+                    first = False
+                    for sub in response_data["result"]:
+                        if first:
+                            new_last = sub["id"]
+                            first = True
+                        if sub["id"] != prev_last:
+                            if sub["verdict"] == "OK" and "contestId" in sub:
+                                cur_list.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
+                        else:
+                            found = True
+                            print("Small query worked.")
+                            ret = cur_list
+                            break
+                    
+                    if not found:
+                        URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
+                        response = urlopen(URL)
+                        await asyncio.sleep(2)
+                        response_data = json.loads(response.read())
+
+                        if (len(response_data["result"]) > 0):
+                            new_last = response_data["result"][0]["id"]
+
+                        ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
+
+                except Exception as e:
+                    print(f"Error when getting submissions: {e}")
+                    return None
+            else:
+                print("Large query.")
+                try:
+
+                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
+                    response = urlopen(URL)
+                    await asyncio.sleep(2)
+                    response_data = json.loads(response.read())
+
+                    if (len(response_data["result"]) > 0):
+                        new_last = response_data["result"][0]["id"]
+
+                    ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
+
+                except Exception as e:
+                    print(f"Error when getting submissions: {e}")
+                    return None
+    # write to db
+    if new_last != -1:
+        try:
+            async with aiosqlite.connect("bot_data.db") as db:
+                await db.execute("""
+                    INSERT OR REPLACE INTO ac (handle, solved, last_sub) 
+                    VALUES (?, ?, ?)
+                """, (handle, json.dumps(ret), new_last))
+                await db.commit()
+        except aiosqlite.Error as e:
+            print(f"Database error: {e}") 
+    return ret

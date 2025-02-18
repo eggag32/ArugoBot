@@ -1,5 +1,11 @@
-from discord.ext import commands
+import asyncio
+import time
+import aiosqlite
+import random
+import json
 import util
+from discord.ext import commands
+from urllib.request import urlopen
 
 class Register(commands.Cog):
     def __init__(self, bot):
@@ -20,7 +26,7 @@ class Register(commands.Cog):
             await ctx.send("You already linked a handle (use unlink if you wish to remove it).")
             return
         # now give them the verification challenge
-        ret = await util.validate_handle(ctx, ctx.guild.id, ctx.author.id, handle)
+        ret = await validate_handle(ctx, ctx.guild.id, ctx.author.id, handle)
         if ret == 1:
             await ctx.send(f"Handle set to {handle}.")
         elif ret == 2:
@@ -38,9 +44,86 @@ class Register(commands.Cog):
             await ctx.send("You have not linked a handle.")
             return
         # ask them if they are sure...
-        await util.unlink(ctx.guild.id, ctx.author.id)
+        await unlink(ctx.guild.id, ctx.author.id)
         await ctx.send("Handle unlinked.")
         
 
 async def setup(bot):
     await bot.add_cog(Register(bot))
+
+async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
+    # 1 - ok
+    # 2 - didn't receive
+    # 3 - handle exists
+    # 4 - you have a handle
+    # 5 - some other error
+
+    if util.problems is None:
+        try:
+            await util.get_problems()    
+        except Exception as e:
+            print(f"Error during parsing: {e}")
+            return 5
+
+    problem = util.problems[random.randint(0, len(util.problems) - 1)]
+    t = time.time()
+    await ctx.send(f"Submit a compilation error to the following problem in the next 60 seconds:\nhttps://codeforces.com/problemset/problem/{problem['contestId']}/{problem['index']}")
+
+    await asyncio.sleep(60)
+    if not await got_submission(handle, problem, t):
+        return 2
+    async with aiosqlite.connect('bot_data.db') as db:
+        try:
+            await db.execute("BEGIN TRANSACTION")
+
+            async with db.execute('SELECT handle FROM users WHERE server_id = ? AND handle = ?', (server_id, handle)) as cursor:
+                existing_handle = await cursor.fetchone()
+
+            if existing_handle:
+                await db.rollback()
+                return 3
+
+            async with db.execute('SELECT handle FROM users WHERE server_id = ? AND user_id = ?', (server_id, user_id)) as cursor:
+                linked_handle = await cursor.fetchone()
+
+            if linked_handle:
+                await db.rollback()
+                return 4
+
+            history = "[]"
+            rating_history = "[]"
+            await db.execute(
+                'INSERT INTO users (server_id, user_id, handle, rating, history, rating_history) VALUES (?, ?, ?, ?, ?, ?)',
+                (server_id, user_id, handle, 1500, history, rating_history)
+            )
+
+            await db.commit()
+            return 1
+        except Exception as e:
+            await db.rollback()
+            print(f"Transaction failed: {e}")
+            return 5
+
+async def got_submission(handle: str, problem, t):
+    try:
+
+        URL = f"https://codeforces.com/api/contest.status?contestId={problem['contestId']}&asManager=false&from=1&count=10&handle={handle}"
+        response = urlopen(URL)
+        await asyncio.sleep(2)
+        response_data = json.loads(response.read())
+
+        for o in response_data["result"]:
+            if o["problem"]["index"] == problem["index"] and o["verdict"] == "COMPILATION_ERROR" and o["contestId"] == problem["contestId"]:
+                return o["creationTimeSeconds"] > t
+
+    except Exception as e:
+        print(f"Error during parsing: {e}")
+        return False
+
+async def unlink(server_id: int, user_id: int):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            await db.execute("DELETE FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id))
+            await db.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
