@@ -7,15 +7,49 @@ import random
 import time
 
 problems = None
+initialized = False
 
-def get_problems():
+async def get_problems():
     global problems
     URL = "https://codeforces.com/api/problemset.problems"
     response = urlopen(URL)
+    await asyncio.sleep(2)
     response_data = json.loads(response.read())
     problems = response_data["result"]["problems"]
     problems = [obj for obj in problems if "rating" in obj and not "*special" in obj["tags"]]
 
+async def fix_handles():
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT handle FROM users") as cursor:
+                rows = await cursor.fetchall()
+                await fix([row[0] for row in rows])
+    except Exception as e:
+        print(f"Database error: {e}")
+
+async def get_new_handle(handle):
+    try:
+        URL = "https://codeforces.com/api/user.info?handles=" + handle
+        response = urlopen(URL)
+        await asyncio.sleep(2) 
+        response_data = json.loads(response.read())
+        return response_data["result"][0]["handle"]
+    except Exception as e:
+        print(f"Access error: {e}")
+        return handle
+
+async def fix(handles):
+    print(handles)
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            for handle in handles:
+                new_handle = await get_new_handle(handle)
+                if new_handle != handle:
+                    print(f"Change from {handle} to {new_handle}.")
+                    await db.execute("UPDATE users SET handle = ? WHERE handle = ?", (new_handle, handle))
+                    await db.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
 
 def getColor(rating):
     if rating < 1200:
@@ -39,11 +73,17 @@ def getColor(rating):
     return discord.Color.from_rgb(173, 216, 230)
 
 async def parse_data():
+    global initialized
+    if initialized:
+        return
+    initialized = True
     # every hour it will update the problems
     while True:
         try:
             print("Parsing data...")
-            get_problems()
+            await get_problems()
+            print("Fixing handles...")
+            await fix_handles() # hi thomas
             # add submission parsing?
             print("Data parsing complete.")
         except Exception as e:
@@ -51,38 +91,54 @@ async def parse_data():
 
         await asyncio.sleep(3600)
 
-def handle_exists_on_cf(handle):
+async def handle_exists_on_cf(handle):
     try:
         URL = "https://codeforces.com/api/user.info?handles=" + handle
         response = urlopen(URL)
+        await asyncio.sleep(2)
         response_data = json.loads(response.read())
-        return response_data["status"] == "OK"
+        return response_data["status"] == "OK" and response_data["result"][0]["handle"] == handle
     except:
         return False
 
 async def handle_exists(server_id: int, user_id: int, handle: str):
     print("handle_exists")
-    async with aiosqlite.connect("bot_data.db") as db:
-        async with db.execute("SELECT user_id FROM users WHERE server_id = ? AND handle = ?", (server_id, handle)) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return True
-            return False
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT user_id FROM users WHERE server_id = ? AND handle = ?", (server_id, handle)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return True
+                return False
+    except Exception as e:
+        print(f"Database error: {e}")
 
-async def handle_linked(server_id: int, user_id: int, handle: str):
+async def handle_linked(server_id: int, user_id: int):
     print("handle_linked")
-    async with aiosqlite.connect("bot_data.db") as db:
-        async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return True
-            return False
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return True
+                return False
+    except Exception as e:
+        print(f"Database error: {e}")
 
-def got_submission(handle: str, problem, t):
+async def unlink(server_id: int, user_id: int):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            await db.execute("DELETE FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id))
+            await db.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
+
+async def got_submission(handle: str, problem, t):
     try:
 
         URL = f"https://codeforces.com/api/contest.status?contestId={problem['contestId']}&asManager=false&from=1&count=10&handle={handle}"
         response = urlopen(URL)
+        await asyncio.sleep(2)
         response_data = json.loads(response.read())
 
         for o in response_data["result"]:
@@ -107,6 +163,7 @@ async def get_solved(handle: str):
 
                     URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=20"
                     response = urlopen(URL)
+                    await asyncio.sleep(2)
                     response_data = json.loads(response.read())
 
                     found = False
@@ -127,6 +184,7 @@ async def get_solved(handle: str):
                     if not found:
                         URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
                         response = urlopen(URL)
+                        await asyncio.sleep(2)
                         response_data = json.loads(response.read())
 
                         if (len(response_data["result"]) > 0):
@@ -143,6 +201,7 @@ async def get_solved(handle: str):
 
                     URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
                     response = urlopen(URL)
+                    await asyncio.sleep(2)
                     response_data = json.loads(response.read())
 
                     if (len(response_data["result"]) > 0):
@@ -185,7 +244,7 @@ async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
     await ctx.send(f"Submit a compilation error to the following problem in the next 60 seconds:\nhttps://codeforces.com/problemset/problem/{problem['contestId']}/{problem['index']}")
 
     await asyncio.sleep(60)
-    if not got_submission(handle, problem, t):
+    if not await got_submission(handle, problem, t):
         return 2
     async with aiosqlite.connect('bot_data.db') as db:
         try:

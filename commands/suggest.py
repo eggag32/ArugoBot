@@ -24,13 +24,19 @@ class Suggest(commands.Cog):
         pos_problems = [p for p in util.problems if p["rating"] == rating]
 
         s = []
+        bad_handles = []
 
         for h in handles:
-            if util.handle_exists_on_cf(h):
+            if await util.handle_exists_on_cf(h):
                 s.append(await util.get_solved(h))
                 if s[-1] is None:
                     await ctx.send("Something went wrong. Try again in a bit.")
                     return
+            else:
+                bad_handles.append(h)
+
+        if len(bad_handles) > 0:
+            await ctx.send(f"Invalid handle(s) (will be ignored): {', '.join(bad_handles)}.")
 
         # try to just pick random until have at least 10
         num = 0
@@ -57,7 +63,9 @@ class Suggest(commands.Cog):
             random.shuffle(sug_list)
         s = ""
         for i in range(min(10, len(sug_list))):
-            s += f"- [{sug_list[i]["index"]}. {sug_list[i]["name"]}](https://codeforces.com/problemset/problem/{sug_list[i]["contestId"]}/{sug_list[i]["index"]})\n"
+            s += f"- [{sug_list[i]["index"]}. {sug_list[i]["name"]}](https://codeforces.com/problemset/problem/{sug_list[i]["contestId"]}/{sug_list[i]["index"]})"
+            if i != min(10, len(sug_list)) - 1:
+                s += "\n"
         embed = discord.Embed(title=f"Problem suggestions", description=s, color=util.getColor(rating))
         await ctx.send(embed=embed)
         
