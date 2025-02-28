@@ -6,12 +6,14 @@ import json
 import util
 from discord.ext import commands
 from urllib.request import urlopen
+from main import global_cooldown
 
 class Register(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
+    @global_cooldown()
     async def register(self, ctx, handle: str):
         b = await util.handle_exists_on_cf(handle)
         if not b:
@@ -39,6 +41,7 @@ class Register(commands.Cog):
             await ctx.send("Some error (maybe CF is down).")
 
     @commands.command()
+    @global_cooldown()
     async def unlink(self, ctx):
         if not await util.handle_linked(ctx.guild.id, ctx.author.id):
             await ctx.send("You have not linked a handle.")
@@ -111,6 +114,9 @@ async def got_submission(handle: str, problem, t):
         response = urlopen(URL)
         await asyncio.sleep(2)
         response_data = json.loads(response.read())
+
+        if response_data["status"] != "OK":
+            return False
 
         for o in response_data["result"]:
             if o["problem"]["index"] == problem["index"] and o["verdict"] == "COMPILATION_ERROR" and o["contestId"] == problem["contestId"]:

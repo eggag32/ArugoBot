@@ -6,12 +6,14 @@ import json
 import random
 from urllib.request import urlopen
 from discord.ext import commands
+from main import global_cooldown
 
 class Suggest(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
+    @global_cooldown()
     async def suggest(self, ctx, rating: int, *handles):
         if (len(handles) > 5):
             await ctx.send("Too many people (limit is 5).")
@@ -92,6 +94,9 @@ async def get_solved(handle: str):
                     response = urlopen(URL)
                     await asyncio.sleep(2)
                     response_data = json.loads(response.read())
+                    
+                    if response_data["status"] != "OK":
+                        return cur_list
 
                     found = False
                     first = False
@@ -130,6 +135,9 @@ async def get_solved(handle: str):
                     response = urlopen(URL)
                     await asyncio.sleep(2)
                     response_data = json.loads(response.read())
+
+                    if response_data["status"] != "OK":
+                        return None
 
                     if (len(response_data["result"]) > 0):
                         new_last = response_data["result"][0]["id"]

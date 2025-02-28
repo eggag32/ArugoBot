@@ -3,6 +3,7 @@ import discord
 import asyncio
 import aiosqlite
 import util
+import time
 from discord.ext import commands
 
 intents = discord.Intents.default()
@@ -33,6 +34,23 @@ async def init_database():
         """)
         await db.commit()
 
+user_cooldowns = {}
+
+def global_cooldown():
+    async def predicate(ctx):
+        user_id = ctx.author.id
+        now = time.time()
+        
+        if user_id in user_cooldowns and now - user_cooldowns[user_id] < 2:
+            remaining = 2 - (now - user_cooldowns[user_id])
+            await ctx.send("Too many requests.", delete_after=2)
+            return False
+        
+        user_cooldowns[user_id] = now
+        return True
+
+    return commands.check(predicate)
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user}')
@@ -40,6 +58,7 @@ async def on_ready():
     await init_database()
 
 @bot.command()
+@global_cooldown()
 async def ping(ctx):
     await ctx.send('Pong!')
 
@@ -59,4 +78,5 @@ async def main():
             token = file.read().strip()
         await bot.start(token)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

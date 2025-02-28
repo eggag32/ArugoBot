@@ -13,6 +13,8 @@ async def get_problems():
     response = urlopen(URL)
     await asyncio.sleep(2)
     response_data = json.loads(response.read())
+    if response_data["status"] != "OK":
+        return
     problems = response_data["result"]["problems"]
     problems = [obj for obj in problems if "rating" in obj and not "*special" in obj["tags"]]
 
@@ -31,6 +33,8 @@ async def get_new_handle(handle):
         response = urlopen(URL)
         await asyncio.sleep(2) 
         response_data = json.loads(response.read())
+        if response_data["status"] != "OK":
+            return handle
         return response_data["result"][0]["handle"]
     except Exception as e:
         print(f"Access error: {e}")
@@ -91,7 +95,7 @@ async def parse_data():
 
 async def handle_exists_on_cf(handle):
     try:
-        URL = "https://codeforces.com/api/user.info?handles=" + handle
+        URL = f"https://codeforces.com/api/user.info?handles={handle}"
         response = urlopen(URL)
         await asyncio.sleep(2)
         response_data = json.loads(response.read())
