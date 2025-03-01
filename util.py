@@ -36,7 +36,7 @@ async def get_new_handle(handle):
     try:
         URL = "https://codeforces.com/api/user.info?handles=" + handle
         response = urlopen(URL)
-        await asyncio.sleep(2) 
+        await asyncio.sleep(2)
         response_data = json.loads(response.read())
         if response_data["status"] != "OK":
             return handle

@@ -7,7 +7,7 @@ class Challenge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(help="Get a challenge")
     @global_cooldown()
     async def challenge(self, ctx, problem: str, length: int, users: commands.Greedy[discord.Member]):
         if not (len == 40 or len == 60 or len == 80):

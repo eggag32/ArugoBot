@@ -35,9 +35,12 @@ async def init_database():
         await db.commit()
 
 user_cooldowns = {}
+last_request = 0
 
 def global_cooldown():
     async def predicate(ctx):
+        global last_request
+        global user_cooldowns
         if ctx.invoked_with == "help":
             return True
         user_id = ctx.author.id
@@ -48,6 +51,17 @@ def global_cooldown():
             await ctx.send("Too many requests.", delete_after=2)
             return False
         
+        if now < last_request:
+
+            if last_request - now > 10:
+                await ctx.send("Too many requests, try again in a bit.", delete_after=2)
+                return False
+
+            last_request += 1
+            await asyncio.sleep(2 * (last_request - now - 1)) # this is all stupid just don't try to break
+        else:
+            last_request = now + 1
+
         user_cooldowns[user_id] = now
         return True
 
@@ -59,7 +73,7 @@ async def on_ready():
     bot.loop.create_task(util.parse_data())
     await init_database()
 
-@bot.command()
+@bot.command(help="Pings the bot")
 @global_cooldown()
 async def ping(ctx):
     await ctx.send('Pong!')

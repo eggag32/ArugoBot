@@ -12,7 +12,7 @@ class Suggest(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(help="Suggests a problem")
     @global_cooldown()
     async def suggest(self, ctx, rating: int, *handles):
         if (len(handles) > 5):

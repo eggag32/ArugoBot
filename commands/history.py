@@ -5,7 +5,7 @@ class History(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(help="Shows your history")
     @global_cooldown()
     async def history(self, ctx):
         await ctx.send("This is history!")

@@ -12,7 +12,7 @@ class Register(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command()
+    @commands.command(help="Links your handle")
     @global_cooldown()
     async def register(self, ctx, handle: str):
         b = await util.handle_exists_on_cf(handle)
@@ -40,7 +40,7 @@ class Register(commands.Cog):
         else:
             await ctx.send("Some error (maybe CF is down).")
 
-    @commands.command()
+    @commands.command(help="Unlinks your handle")
     @global_cooldown()
     async def unlink(self, ctx):
         if not await util.handle_linked(ctx.guild.id, ctx.author.id):
@@ -112,7 +112,6 @@ async def got_submission(handle: str, problem, t):
 
         URL = f"https://codeforces.com/api/contest.status?contestId={problem['contestId']}&asManager=false&from=1&count=10&handle={handle}"
         response = urlopen(URL)
-        await asyncio.sleep(2)
         response_data = json.loads(response.read())
 
         if response_data["status"] != "OK":
