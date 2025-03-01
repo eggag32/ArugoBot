@@ -38,6 +38,8 @@ user_cooldowns = {}
 
 def global_cooldown():
     async def predicate(ctx):
+        if ctx.invoked_with == "help":
+            return True
         user_id = ctx.author.id
         now = time.time()
         

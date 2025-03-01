@@ -5,10 +5,12 @@ import asyncio
 from urllib.request import urlopen
 
 problems = None
+problem_dict = None
 initialized = False
 
 async def get_problems():
     global problems
+    global problem_dict
     URL = "https://codeforces.com/api/problemset.problems"
     response = urlopen(URL)
     await asyncio.sleep(2)
@@ -17,6 +19,9 @@ async def get_problems():
         return
     problems = response_data["result"]["problems"]
     problems = [obj for obj in problems if "rating" in obj and not "*special" in obj["tags"]]
+    problem_dict = {}
+    for problem in problems:
+        problem_dict[str(problem["contestId"]) + problem["index"]] = problem
 
 async def fix_handles():
     try:
@@ -124,5 +129,24 @@ async def handle_linked(server_id: int, user_id: int):
                 if row:
                     return True
                 return False
+    except Exception as e:
+        print(f"Database error: {e}")
+
+def get_rating_changes(old_rating: int, problem_rating: int, length: int):
+    # adjust for length
+    problem_rating += 100 * ((80 - length) / 20)
+    # somewhat arbitrary, but will keep the same for consistency
+    magnitude = 16
+    return [-min(magnitude * 10, (0.5 * magnitude) // (1 - (1 / (1 + 10 ** ((problem_rating - old_rating) / 500))))), 
+            min(magnitude * 10, (0.5 * magnitude) // (1.15 / (1 + 10 ** ((problem_rating - old_rating) / 500))))]
+
+async def get_rating(server_id: int, user_id: int):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT rating FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return row[0]
+                return -1
     except Exception as e:
         print(f"Database error: {e}")
