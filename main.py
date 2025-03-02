@@ -53,7 +53,7 @@ def global_cooldown():
         
         if now < last_request:
 
-            if last_request - now > 10:
+            if last_request - now > 5:
                 await ctx.send("Too many requests, try again in a bit.", delete_after=2)
                 return False
 

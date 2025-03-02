@@ -3,6 +3,7 @@ import time
 import aiosqlite
 import random
 import json
+import discord
 import util
 from discord.ext import commands
 from urllib.request import urlopen
@@ -46,10 +47,27 @@ class Register(commands.Cog):
         if not await util.handle_linked(ctx.guild.id, ctx.author.id):
             await ctx.send("You have not linked a handle.")
             return
-        # ask them if they are sure...
-        await unlink(ctx.guild.id, ctx.author.id)
-        await ctx.send("Handle unlinked.")
-        
+        embed = discord.Embed(title="Confirm", description="Are you sure? This action cannot be undone. React with :white_check_mark: within 60 seconds to confirm.", color=discord.Color.blue())
+        message = await ctx.send(embed=embed)
+        await asyncio.sleep(60)
+        message = await ctx.channel.fetch_message(message.id)
+        bad = True
+        for reaction in message.reactions:
+            if str(reaction.emoji) == "✅":
+                reactors = [user.id async for user in reaction.users()]
+                if ctx.author.id in reactors:
+                    bad = False
+                break
+
+        if bad:
+            embed.description = "Account not unlinked."
+            await message.edit(embed=embed)
+            return
+        else:
+            await unlink(ctx.guild.id, ctx.author.id)
+            embed.description = "Account unlinked."
+            await message.edit(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Register(bot))
@@ -94,7 +112,7 @@ async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
                 return 4
 
             history = "[]"
-            rating_history = "[]"
+            rating_history = "[1500]"
             await db.execute(
                 'INSERT INTO users (server_id, user_id, handle, rating, history, rating_history) VALUES (?, ?, ?, ?, ?, ?)',
                 (server_id, user_id, handle, 1500, history, rating_history)

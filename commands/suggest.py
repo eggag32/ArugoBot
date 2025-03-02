@@ -69,7 +69,7 @@ class Suggest(commands.Cog):
             random.shuffle(sug_list)
         s = ""
         for i in range(min(10, len(sug_list))):
-            s += f"- [{sug_list[i]["index"]}. {sug_list[i]["name"]}](https://codeforces.com/problemset/problem/{sug_list[i]["contestId"]}/{sug_list[i]["index"]})"
+            s += f"- [{sug_list[i]["contestId"]}{sug_list[i]["index"]}. {sug_list[i]["name"]}](https://codeforces.com/problemset/problem/{sug_list[i]["contestId"]}/{sug_list[i]["index"]})"
             if i != min(10, len(sug_list)) - 1:
                 s += "\n"
         embed = discord.Embed(title=f"Problem suggestions", description=s, color=util.getColor(rating))

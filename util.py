@@ -109,7 +109,6 @@ async def handle_exists_on_cf(handle):
         return False
 
 async def handle_exists(server_id: int, user_id: int, handle: str):
-    print("handle_exists")
     try:
         async with aiosqlite.connect("bot_data.db") as db:
             async with db.execute("SELECT user_id FROM users WHERE server_id = ? AND handle = ?", (server_id, handle)) as cursor:
@@ -121,7 +120,6 @@ async def handle_exists(server_id: int, user_id: int, handle: str):
         print(f"Database error: {e}")
 
 async def handle_linked(server_id: int, user_id: int):
-    print("handle_linked")
     try:
         async with aiosqlite.connect("bot_data.db") as db:
             async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
@@ -132,13 +130,24 @@ async def handle_linked(server_id: int, user_id: int):
     except Exception as e:
         print(f"Database error: {e}")
 
+async def get_handle(server_id: int, user_id: int):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return row[0]
+                return None
+    except Exception as e:
+        print(f"Database error: {e}")
+
 def get_rating_changes(old_rating: int, problem_rating: int, length: int):
     # adjust for length
-    problem_rating += 100 * ((80 - length) / 20)
+    problem_rating += 50 * ((80 - length) / 20)
     # somewhat arbitrary, but will keep the same for consistency
     magnitude = 16
-    return [-min(magnitude * 10, (0.5 * magnitude) // (1 - (1 / (1 + 10 ** ((problem_rating - old_rating) / 500))))), 
-            min(magnitude * 10, (0.5 * magnitude) // (1.15 / (1 + 10 ** ((problem_rating - old_rating) / 500))))]
+    return [int(-min(magnitude * 10, (0.5 * magnitude) // (1 - (1 / (1 + 10 ** ((problem_rating - old_rating) / 500)))))), 
+            int(min(magnitude * 10, (0.5 * magnitude) // (1.15 / (1 + 10 ** ((problem_rating - old_rating) / 500)))))]
 
 async def get_rating(server_id: int, user_id: int):
     try:
@@ -150,3 +159,31 @@ async def get_rating(server_id: int, user_id: int):
                 return -1
     except Exception as e:
         print(f"Database error: {e}")
+
+async def get_history(server_id: int, user_id: int):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return json.loads(row[0])
+                return []
+    except Exception as e:
+        print(f"Database error: {e}")
+
+async def add_to_history(server_id: int, user_id: int, problem: str):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    history = json.loads(row[0])
+                    history.append(problem)
+                    await db.execute("UPDATE users SET history = ? WHERE server_id = ? AND user_id = ?", (json.dumps(history), server_id, user_id))
+                    await db.commit()
+    except Exception as e:
+        print(f"Database error: {e}")
+
+def format_time(seconds: float):
+    minutes, seconds = divmod(int(seconds), 60)
+    return f"{minutes}:{seconds:02d}"
