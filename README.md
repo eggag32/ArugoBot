@@ -10,9 +10,9 @@ The following commands are available to you:
 - **=challenge [problem (i.e. 1000A)] [length in minutes (40/60/80)] [participants other than you (i.e. @eggag32 @eggag33)]**
 
   Starts a challenge.
-- **=rating**
+- **=rating [optional username (i.e. @eggag32)]**
   
-  Shows your rating.
+  Shows your (or other user's) rating graph.
 - **=register [handle]**
 
   Links your CF account.
