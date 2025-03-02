@@ -171,6 +171,17 @@ async def get_history(server_id: int, user_id: int):
     except Exception as e:
         print(f"Database error: {e}")
 
+async def get_rating_history(server_id: int, user_id: int):
+    try:
+        async with aiosqlite.connect("bot_data.db") as db:
+            async with db.execute("SELECT rating_history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return json.loads(row[0])
+                return []
+    except Exception as e:
+        print(f"Database error: {e}")
+
 async def add_to_history(server_id: int, user_id: int, problem: str):
     try:
         async with aiosqlite.connect("bot_data.db") as db:
