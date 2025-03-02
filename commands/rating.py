@@ -1,11 +1,13 @@
-from discord.ext import commands
-from main import global_cooldown
-from discord.utils import escape_mentions
 import matplotlib.pyplot as plt
 import discord
 import util
-import numpy as np
 import io
+import logging
+from discord.ext import commands
+from main import global_cooldown
+from discord.utils import escape_mentions
+
+logger = logging.getLogger("bot_logger")
 
 class Rating(commands.Cog):
     def __init__(self, bot):
@@ -54,7 +56,7 @@ class Rating(commands.Cog):
                 embed.set_image(url="attachment://image.png")
                 await ctx.send(file=discord_file, embed=embed)
             except Exception as e:
-                print(f"Something went wrong: {e}")
+                logger.error(f"Something went wrong: {e}")
 
 
 async def setup(bot):

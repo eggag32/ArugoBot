@@ -2,7 +2,10 @@ import json
 import discord
 import aiosqlite
 import asyncio
+import logging
 from urllib.request import urlopen
+
+logger = logging.getLogger("bot_logger")
 
 problems = None
 problem_dict = None
@@ -30,7 +33,7 @@ async def fix_handles():
                 rows = await cursor.fetchall()
                 await fix([row[0] for row in rows])
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 async def get_new_handle(handle):
     try:
@@ -42,21 +45,21 @@ async def get_new_handle(handle):
             return handle
         return response_data["result"][0]["handle"]
     except Exception as e:
-        print(f"Access error: {e}")
+        logger.error(f"Access error: {e}")
         return handle
 
 async def fix(handles):
-    print(handles)
+    logger.info(handles)
     try:
         async with aiosqlite.connect("bot_data.db") as db:
             for handle in handles:
                 new_handle = await get_new_handle(handle)
                 if new_handle != handle:
-                    print(f"Change from {handle} to {new_handle}.")
+                    logger.info(f"Change from {handle} to {new_handle}.")
                     await db.execute("UPDATE users SET handle = ? WHERE handle = ?", (new_handle, handle))
                     await db.commit()
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 def getColor(rating):
     if rating < 1200:
@@ -87,14 +90,14 @@ async def parse_data():
     # every hour it will update the problems
     while True:
         try:
-            print("Parsing data...")
+            logger.info("Parsing data...")
             await get_problems()
-            print("Fixing handles...")
+            logger.info("Fixing handles...")
             await fix_handles() # hi thomas
             # add submission parsing?
-            print("Data parsing complete.")
+            logger.info("Data parsing complete.")
         except Exception as e:
-            print(f"Error during parsing: {e}")
+            logger.error(f"Error during parsing: {e}")
 
         await asyncio.sleep(3600)
 
@@ -105,8 +108,8 @@ async def handle_exists_on_cf(handle):
         await asyncio.sleep(2)
         response_data = json.loads(response.read())
         return response_data["status"] == "OK" and response_data["result"][0]["handle"].lower() == handle.lower()
-    except:
-        return False
+    except Exception as e:
+        logger.error(f"Request error: {e}")
 
 async def handle_exists(server_id: int, user_id: int, handle: str):
     try:
@@ -117,7 +120,7 @@ async def handle_exists(server_id: int, user_id: int, handle: str):
                     return True
                 return False
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 async def handle_linked(server_id: int, user_id: int):
     try:
@@ -128,7 +131,7 @@ async def handle_linked(server_id: int, user_id: int):
                     return True
                 return False
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 async def get_handle(server_id: int, user_id: int):
     try:
@@ -139,7 +142,7 @@ async def get_handle(server_id: int, user_id: int):
                     return row[0]
                 return None
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 def get_rating_changes(old_rating: int, problem_rating: int, length: int):
     # adjust for length
@@ -158,7 +161,7 @@ async def get_rating(server_id: int, user_id: int):
                     return row[0]
                 return -1
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 async def get_history(server_id: int, user_id: int):
     try:
@@ -169,7 +172,7 @@ async def get_history(server_id: int, user_id: int):
                     return json.loads(row[0])
                 return []
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 async def get_rating_history(server_id: int, user_id: int):
     try:
@@ -180,7 +183,7 @@ async def get_rating_history(server_id: int, user_id: int):
                     return json.loads(row[0])
                 return []
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 async def add_to_history(server_id: int, user_id: int, problem: str):
     try:
@@ -193,7 +196,7 @@ async def add_to_history(server_id: int, user_id: int, problem: str):
                     await db.execute("UPDATE users SET history = ? WHERE server_id = ? AND user_id = ?", (json.dumps(history), server_id, user_id))
                     await db.commit()
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
 
 def format_time(seconds: float):
     minutes, seconds = divmod(int(seconds), 60)
@@ -206,7 +209,7 @@ async def get_leaderboard(server_id: int):
                 rows = await cursor.fetchall()
                 return rows
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return None
 
 async def get_history(server_id: int, user_id: int):
@@ -218,5 +221,5 @@ async def get_history(server_id: int, user_id: int):
                     return [json.loads(row[0]), json.loads(row[1])]
                 return None
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return None

@@ -4,9 +4,12 @@ import asyncio
 import aiosqlite
 import json
 import random
+import logging
 from urllib.request import urlopen
 from discord.ext import commands
 from main import global_cooldown
+
+logger = logging.getLogger("bot_logger")
 
 class Suggest(commands.Cog):
     def __init__(self, bot):
@@ -85,7 +88,7 @@ async def get_solved(handle: str):
         async with db.execute("SELECT * FROM ac WHERE handle = ?", (handle, )) as cursor:
             row = await cursor.fetchone()
             if row:
-                print("Small query.")
+                logger.info("Small query.")
                 prev_last = row[2] 
                 cur_list = json.loads(row[1])
                 try:
@@ -109,7 +112,7 @@ async def get_solved(handle: str):
                                 cur_list.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
                         else:
                             found = True
-                            print("Small query worked.")
+                            logger.info("Small query worked.")
                             ret = cur_list
                             break
                     
@@ -125,10 +128,10 @@ async def get_solved(handle: str):
                         ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
 
                 except Exception as e:
-                    print(f"Error when getting submissions: {e}")
+                    logger.error(f"Error when getting submissions: {e}")
                     return None
             else:
-                print("Large query.")
+                logger.info("Large query.")
                 try:
 
                     URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
@@ -145,7 +148,7 @@ async def get_solved(handle: str):
                     ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
 
                 except Exception as e:
-                    print(f"Error when getting submissions: {e}")
+                    logger.error(f"Error when getting submissions: {e}")
                     return None
     # write to db
     if new_last != -1:
@@ -157,5 +160,5 @@ async def get_solved(handle: str):
                 """, (handle, json.dumps(ret), new_last))
                 await db.commit()
         except aiosqlite.Error as e:
-            print(f"Database error: {e}") 
+            logger.error(f"Database error: {e}") 
     return ret

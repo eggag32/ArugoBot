@@ -2,3 +2,4 @@ token.txt
 bot_data.db
 __pycache__/
 commands/__pycache__
+bot.log

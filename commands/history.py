@@ -1,7 +1,10 @@
 import util
 import discord
+import logging
 from discord.ext import commands
 from main import global_cooldown
+
+logger = logging.getLogger("bot_logger")
 
 class History(commands.Cog):
     def __init__(self, bot):
@@ -28,12 +31,12 @@ class History(commands.Cog):
                 if ind + i >= len(h[0]):
                     break
                 name = h[0][ind + i]
-                s += f"- [{name}. {util.problem_dict[name]['name']}](https://codeforces.com/problemset/problem/{util.problem_dict[name]["contestId"]}/{util.problem_dict[name]["index"]})"
+                s += f"- [{name}. {util.problem_dict[name]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[name]["contestId"]}/{util.problem_dict[name]["index"]})"
                 s += f" (rating change: {h[1][ind + i + 1] - h[1][ind + i]})\n"
             embed.add_field(name="Problems", value=s, inline=False)
             await ctx.send(embed=embed)
         except Exception as e:
-            print(f"Error in history: {e}")
+            logger.error(f"Error in history: {e}")
 
 
 async def setup(bot):

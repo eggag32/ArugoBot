@@ -1,7 +1,10 @@
 import util
 import discord
+import logging
 from discord.ext import commands
 from main import global_cooldown
+
+logger = logging.getLogger("bot_logger")
 
 class Leaderboard(commands.Cog):
     def __init__(self, bot):
@@ -37,7 +40,7 @@ class Leaderboard(commands.Cog):
             embed.add_field(name="Users", value=s, inline=False)
             await ctx.send(embed=embed)
         except Exception as e:
-            print(f"Error during leaderboard command: {e}")
+            logger.error(f"Error during leaderboard command: {e}")
 
 async def setup(bot):
     await bot.add_cog(Leaderboard(bot))

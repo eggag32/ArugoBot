@@ -4,12 +4,23 @@ import asyncio
 import aiosqlite
 import util
 import time
+import logging
 from discord.ext import commands
 
 intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="=", intents=intents)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("bot.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("bot_log")
 
 async def init_database():
     async with aiosqlite.connect("bot_data.db") as db:
@@ -69,7 +80,7 @@ def global_cooldown():
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user}')
+    logger.info(f'Logged in as {bot.user}')
     bot.loop.create_task(util.parse_data())
     await init_database()
 
@@ -83,9 +94,9 @@ async def load_cogs():
         if filename.endswith(".py") and filename != "__init__.py":
             try:
                 await bot.load_extension(f"commands.{filename[:-3]}")
-                print(f"Loaded {filename}")
+                logger.info(f"Loaded {filename}")
             except Exception as e:
-                print(f"Failed to load {filename}: {e}")
+                logger.error(f"Failed to load {filename}: {e}")
 
 async def main():
     async with bot:

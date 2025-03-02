@@ -4,9 +4,12 @@ import time
 import util
 import aiosqlite
 import json
+import logging
 from main import global_cooldown
 from discord.ext import commands
 from urllib.request import urlopen
+
+logger = logging.getLogger("bot_logger")
 
 class Challenge(commands.Cog):
     def __init__(self, bot):
@@ -169,7 +172,7 @@ async def got_ac(handle: str, problem: str, length: int, start_time: int):
                 return o["creationTimeSeconds"] <= start_time + length * 60 and o["creationTimeSeconds"] >= start_time
 
     except Exception as e:
-        print(f"Error during challenge: {e}")
+        logger.error(f"Error during challenge: {e}")
         return False
 
 async def update_rating(server_id: str, user_id: int, rating: int):
@@ -186,4 +189,4 @@ async def update_rating(server_id: str, user_id: int, rating: int):
             await db.execute("UPDATE users SET rating = ?, rating_history = ? WHERE server_id = ? AND user_id = ?", (rating, json.dumps(hist), server_id, user_id))
             await db.commit()
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error (rating update): {e}")

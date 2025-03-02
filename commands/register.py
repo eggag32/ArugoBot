@@ -5,9 +5,12 @@ import random
 import json
 import discord
 import util
+import logging
 from discord.ext import commands
 from urllib.request import urlopen
 from main import global_cooldown
+
+logger = logging.getLogger("bot_logger")
 
 class Register(commands.Cog):
     def __init__(self, bot):
@@ -83,7 +86,7 @@ async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
         try:
             await util.get_problems()    
         except Exception as e:
-            print(f"Error during parsing: {e}")
+            logger.error(f"Failed to get problems: {e}")
             return 5
 
     problem = util.problems[random.randint(0, len(util.problems) - 1)]
@@ -122,7 +125,7 @@ async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
             return 1
         except Exception as e:
             await db.rollback()
-            print(f"Transaction failed: {e}")
+            logger.error(f"Transaction failed: {e}")
             return 5
 
 async def got_submission(handle: str, problem, t):
@@ -140,7 +143,7 @@ async def got_submission(handle: str, problem, t):
                 return o["creationTimeSeconds"] > t
 
     except Exception as e:
-        print(f"Error during parsing: {e}")
+        logger.error(f"Error getting submission: {e}")
         return False
 
 async def unlink(server_id: int, user_id: int):
@@ -149,4 +152,4 @@ async def unlink(server_id: int, user_id: int):
             await db.execute("DELETE FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id))
             await db.commit()
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
