@@ -13,6 +13,12 @@ The following commands are available to you:
 - **=rating [optional username (i.e. @eggag32)]**
   
   Shows your (or other user's) rating graph.
+- **=history [optional page number, 1 by default]**
+
+  Shows a page of your challenge history.
+- **=leaderboard [optional page number, 1 by default]**
+
+  Shows a page of the server leaderboard.
 - **=register [handle]**
 
   Links your CF account.
