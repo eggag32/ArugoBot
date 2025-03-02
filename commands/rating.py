@@ -26,11 +26,7 @@ class Rating(commands.Cog):
         else:
             try:
                 pY = await util.get_rating_history(ctx.guild.id, id)
-                pY.append(1000)
-                pY.append(1900)
-                pY.append(2400)
-                pY.append(3000)
-                pX = [i for i in range(len(pY))]
+                pX = [i + 1 for i in range(len(pY))]
                 fig, ax = plt.subplots()
                 ax.axhspan(-1000, 1200, facecolor="gray", alpha=0.5)
                 ax.axhspan(1200, 1400, facecolor="lime", alpha=0.5)
@@ -47,19 +43,16 @@ class Rating(commands.Cog):
                 l = [0, 1200, 1400, 1600, 1900, 2100, 2300, 2400, 2600, 3000]
                 t = [i for i in l if i >= min(pY) - 100 and i <= max(pY) + 100]
                 ax.set_yticks(t)
+                ax.set_xticks(range(1, len(pY) + 1, 1))
                 ax.set_title(f"Rating history of {name}")
                 img_buffer = io.BytesIO()
                 plt.savefig(img_buffer, format="png", bbox_inches="tight")
                 plt.close()
                 img_buffer.seek(0)
-
                 discord_file = discord.File(img_buffer, filename="image.png")
-                embed = discord.Embed(title="Rating graph", description=f"{mention}'s rating is {r}.", color=discord.Color.blue())
+                embed = discord.Embed(title="Rating graph", description=f"{mention}'s rating is {r}", color=discord.Color.blue())
                 embed.set_image(url="attachment://image.png")
                 await ctx.send(file=discord_file, embed=embed)
-
-                #await ctx.send(f"{ctx.author.mention}'s rating is {r}.")
-                #await ctx.send(file=discord.File(img_buffer, filename="rating_graph.png"))
             except Exception as e:
                 print(f"Something went wrong: {e}")
 

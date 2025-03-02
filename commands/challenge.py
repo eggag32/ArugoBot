@@ -40,7 +40,7 @@ class Challenge(commands.Cog):
                 await ctx.send("One or more users have already done this problem.")
                 return
         # then get all their ratings (and predicted changes) and create an embed
-        embed = discord.Embed(title="Confirm", description="React with :white_check_mark: within 30 seconds to confirm.", color=discord.Color.blue())
+        embed = discord.Embed(title="Confirm", description="React with :white_check_mark: within 30 seconds to confirm", color=discord.Color.blue())
         embed.add_field(name="Time", value=util.format_time(length*60), inline=False)
         p = f"[{util.problem_dict[problem]["index"]}. {util.problem_dict[problem]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[problem]["contestId"]}/{util.problem_dict[problem]["index"]})"
         embed.add_field(name="Problem", value=p, inline=False)
