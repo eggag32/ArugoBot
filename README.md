@@ -33,5 +33,5 @@ The following commands are available to you:
   Prints the help message.
 
 ## Installation
-To invite the instance I am hosting, use this [link](https://discord.com/oauth2/authorize?client_id=1325529003473240124&permissions=277025482816&integration_type=0&scope=bot).
+To invite the instance I am hosting, use this [link](https://discord.com/oauth2/authorize?client_id=1325529003473240124&permissions=277025507392&integration_type=0&scope=bot).
 If you want to host it, all you need to do is make sure you install everything from ```requirements.txt```, add a ```token.txt``` file that contains your Discord bot token, and run ```main.py```.
