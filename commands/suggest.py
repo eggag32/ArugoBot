@@ -125,7 +125,7 @@ async def get_solved(handle: str):
                             break
                     
                     if not found:
-                        URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
+                        URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=100000"
                         response = urlopen(URL)
                         await asyncio.sleep(2)
                         response_data = json.loads(response.read())
@@ -142,7 +142,7 @@ async def get_solved(handle: str):
                 logger.info("Large query.")
                 try:
 
-                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=1000000"
+                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=100000"
                     response = urlopen(URL)
                     await asyncio.sleep(2)
                     response_data = json.loads(response.read())
