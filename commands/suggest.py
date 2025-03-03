@@ -18,6 +18,14 @@ class Suggest(commands.Cog):
     @commands.command(help="Suggests a problem")
     @global_cooldown()
     async def suggest(self, ctx, rating: int, *handles):
+        if not isinstance(rating, int):
+            await ctx.send("Rating should be an integer.")
+            return
+        for h in handles:
+            if not isinstance(h, str):
+                await ctx.send("Handles should be strings.")
+                return
+            
         if (len(handles) > 5):
             await ctx.send("Too many people (limit is 5).")
             return
@@ -84,7 +92,7 @@ async def setup(bot):
 async def get_solved(handle: str):
     ret = []
     new_last = -1
-    async with aiosqlite.connect("bot_data.db") as db:
+    async with aiosqlite.connect(util.path + "bot_data.db") as db:
         async with db.execute("SELECT * FROM ac WHERE handle = ?", (handle, )) as cursor:
             row = await cursor.fetchone()
             if row:
@@ -153,7 +161,7 @@ async def get_solved(handle: str):
     # write to db
     if new_last != -1:
         try:
-            async with aiosqlite.connect("bot_data.db") as db:
+            async with aiosqlite.connect(util.path + "bot_data.db") as db:
                 await db.execute("""
                     INSERT OR REPLACE INTO ac (handle, solved, last_sub) 
                     VALUES (?, ?, ?)

@@ -18,6 +18,19 @@ class Challenge(commands.Cog):
     @commands.command(help="Get a challenge")
     @global_cooldown()
     async def challenge(self, ctx, problem: str, length: int, users: commands.Greedy[discord.Member]):
+        if not isinstance(problem, str):
+            await ctx.send("Problem must be a string.")
+            return
+        if not isinstance(length, int):
+            await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
+            return
+        if not isinstance(users, list):
+            await ctx.send("Users must be a list.")
+            return
+        if not all(isinstance(user, discord.Member) for user in users):
+            await ctx.send("Some inputs were not valid members.")
+            return
+
         if not (length == 40 or length == 60 or length == 80):
             await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
             return
@@ -177,7 +190,7 @@ async def got_ac(handle: str, problem: str, length: int, start_time: int):
 
 async def update_rating(server_id: str, user_id: int, rating: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(util.path + "bot_data.db") as db:
             hist = []
             async with db.execute("SELECT rating_history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()

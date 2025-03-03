@@ -13,6 +13,10 @@ class Leaderboard(commands.Cog):
     @commands.command(help="Shows the server leaderboard")
     @global_cooldown()
     async def leaderboard(self, ctx, page: int = 1):
+        if not isinstance(page, int) or page < 1:
+            await ctx.send("Invalid page.")
+            return
+
         try:
             lb = await util.get_leaderboard(ctx.guild.id)
             if lb is None:

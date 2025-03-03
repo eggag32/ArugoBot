@@ -13,6 +13,10 @@ class History(commands.Cog):
     @commands.command(help="Shows your history")
     @global_cooldown()
     async def history(self, ctx, page: int = 1):
+        if not isinstance(page, int) or page < 1:
+            await ctx.send("Invalid page.")
+            return
+
         try:
             h = await util.get_history(ctx.guild.id, ctx.author.id)
             if h is None:

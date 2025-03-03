@@ -16,14 +16,14 @@ logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s] [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler("bot.log"),
+        logging.FileHandler(util.path + "bot.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger("bot_log")
 
 async def init_database():
-    async with aiosqlite.connect("bot_data.db") as db:
+    async with aiosqlite.connect(util.path + "bot_data.db") as db:
         await db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             server_id INTEGER NOT NULL,
@@ -90,7 +90,7 @@ async def ping(ctx):
     await ctx.send('Pong!')
 
 async def load_cogs():
-    for filename in os.listdir("./commands"):
+    for filename in os.listdir(util.path + "/commands"):
         if filename.endswith(".py") and filename != "__init__.py":
             try:
                 await bot.load_extension(f"commands.{filename[:-3]}")
@@ -101,7 +101,7 @@ async def load_cogs():
 async def main():
     async with bot:
         await load_cogs()
-        with open("token.txt", "r") as file:
+        with open(util.path + "token.txt", "r") as file:
             token = file.read().strip()
         await bot.start(token)
 

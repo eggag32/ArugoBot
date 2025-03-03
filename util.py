@@ -6,6 +6,7 @@ import logging
 from urllib.request import urlopen
 
 logger = logging.getLogger("bot_logger")
+path = "/Users/eggag32/Documents/Bot/ArugoBot/"
 
 problems = None
 problem_dict = None
@@ -28,7 +29,7 @@ async def get_problems():
 
 async def fix_handles():
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT handle FROM users") as cursor:
                 rows = await cursor.fetchall()
                 await fix([row[0] for row in rows])
@@ -51,7 +52,7 @@ async def get_new_handle(handle):
 async def fix(handles):
     logger.info(handles)
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             for handle in handles:
                 new_handle = await get_new_handle(handle)
                 if new_handle != handle:
@@ -101,7 +102,10 @@ async def parse_data():
 
         await asyncio.sleep(3600)
 
-async def handle_exists_on_cf(handle):
+async def handle_exists_on_cf(handle: str):
+    for c in handle:
+        if not (c.isalpha() or c.isdigit() or c == '_' or c == '-'):
+            return False
     try:
         URL = f"https://codeforces.com/api/user.info?handles={handle}"
         response = urlopen(URL)
@@ -113,7 +117,7 @@ async def handle_exists_on_cf(handle):
 
 async def handle_exists(server_id: int, user_id: int, handle: str):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT user_id FROM users WHERE server_id = ? AND handle = ?", (server_id, handle)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -124,7 +128,7 @@ async def handle_exists(server_id: int, user_id: int, handle: str):
 
 async def handle_linked(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -135,7 +139,7 @@ async def handle_linked(server_id: int, user_id: int):
 
 async def get_handle(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT handle FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -154,7 +158,7 @@ def get_rating_changes(old_rating: int, problem_rating: int, length: int):
 
 async def get_rating(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT rating FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -165,7 +169,7 @@ async def get_rating(server_id: int, user_id: int):
 
 async def get_history(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -176,7 +180,7 @@ async def get_history(server_id: int, user_id: int):
 
 async def get_rating_history(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT rating_history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -187,7 +191,7 @@ async def get_rating_history(server_id: int, user_id: int):
 
 async def add_to_history(server_id: int, user_id: int, problem: str):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -204,7 +208,7 @@ def format_time(seconds: float):
 
 async def get_leaderboard(server_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT user_id, rating FROM users WHERE server_id = ? ORDER BY rating DESC", (server_id,)) as cursor:
                 rows = await cursor.fetchall()
                 return rows
@@ -214,7 +218,7 @@ async def get_leaderboard(server_id: int):
 
 async def get_history(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT history, rating_history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:

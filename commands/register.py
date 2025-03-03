@@ -19,6 +19,10 @@ class Register(commands.Cog):
     @commands.command(help="Links your handle")
     @global_cooldown()
     async def register(self, ctx, handle: str):
+        if not isinstance(handle, str):
+            await ctx.send("Invalid handle.")
+            return
+            
         b = await util.handle_exists_on_cf(handle)
         if not b:
             await ctx.send("Invalid handle.")
@@ -96,7 +100,7 @@ async def validate_handle(ctx, server_id: int, user_id: int, handle: str):
     await asyncio.sleep(60)
     if not await got_submission(handle, problem, t):
         return 2
-    async with aiosqlite.connect('bot_data.db') as db:
+    async with aiosqlite.connect(util.path + "bot_data.db") as db:
         try:
             await db.execute("BEGIN TRANSACTION")
 
@@ -148,7 +152,7 @@ async def got_submission(handle: str, problem, t):
 
 async def unlink(server_id: int, user_id: int):
     try:
-        async with aiosqlite.connect("bot_data.db") as db:
+        async with aiosqlite.connect(util.path + "bot_data.db") as db:
             await db.execute("DELETE FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id))
             await db.commit()
     except Exception as e:

@@ -16,6 +16,11 @@ class Rating(commands.Cog):
     @commands.command(help="Shows your rating")
     @global_cooldown()
     async def rating(self, ctx, member: discord.Member = None):
+        if not member is None:
+            if not isinstance(member, discord.Member):
+                await ctx.send("Invalid member.")
+                return
+
         id = member.id if member else ctx.author.id
         name = member.name if member else ctx.author.name
         mention = member.mention if member else ctx.author.mention
