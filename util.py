@@ -38,7 +38,7 @@ async def fix_handles():
 
 async def get_new_handle(handle):
     try:
-        URL = "https://codeforces.com/api/user.info?handles=" + handle
+        URL = f"https://codeforces.com/api/user.info?handles={handle}"
         response = urlopen(URL)
         await asyncio.sleep(2)
         response_data = json.loads(response.read())
@@ -46,6 +46,8 @@ async def get_new_handle(handle):
             return handle
         return response_data["result"][0]["handle"]
     except Exception as e:
+        logger.info(handle)
+        logger.info(f"https://codeforces.com/api/user.info?handles={handle}")
         logger.error(f"Access error: {e}")
         return handle
 
