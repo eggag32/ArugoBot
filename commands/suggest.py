@@ -125,15 +125,28 @@ async def get_solved(handle: str):
                             break
                     
                     if not found:
-                        URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=100000"
-                        response = urlopen(URL)
-                        await asyncio.sleep(2)
-                        response_data = json.loads(response.read())
+                        ind = 1
+                        while (ind // 5000) < 4: # this should be large enough for reasonable users...
+                            URL = f"https://codeforces.com/api/user.status?handle={handle}&from={ind}&count=5000"
+                            response = urlopen(URL)
+                            await asyncio.sleep(2)
+                            response_data = json.loads(response.read())
+                            logger.info(len(response_data["result"]))
 
-                        if (len(response_data["result"]) > 0):
-                            new_last = response_data["result"][0]["id"]
+                            if (len(response_data["result"]) > 0 and ind == 1):
+                                new_last = response_data["result"][0]["id"]
 
-                        ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
+                            if len(response_data["result"]) == 0:
+                                break
+                            
+                            for sub in response_data["result"]:
+                                if sub["verdict"] == "OK" and "contestId" in sub:
+                                    ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
+
+                            if len(response_data["result"]) < 5000:
+                                break
+
+                            ind += 5000
 
                 except Exception as e:
                     logger.error(f"Error when getting submissions: {e}")
@@ -141,25 +154,36 @@ async def get_solved(handle: str):
             else:
                 logger.info("Large query.")
                 try:
+                    ind = 1
+                    while (ind // 5000) < 4:
+                        URL = f"https://codeforces.com/api/user.status?handle={handle}&from={ind}&count=5000"
+                        response = urlopen(URL)
+                        await asyncio.sleep(2)
+                        response_data = json.loads(response.read())
+                        logger.info(len(response_data["result"]))
+                        logger.info(ind)
 
-                    URL = f"https://codeforces.com/api/user.status?handle={handle}&from=1&count=100000"
-                    response = urlopen(URL)
-                    await asyncio.sleep(2)
-                    response_data = json.loads(response.read())
+                        if (len(response_data["result"]) > 0 and ind == 1):
+                            new_last = response_data["result"][0]["id"]
+                        
+                        if len(response_data["result"]) == 0:
+                            break
 
-                    if response_data["status"] != "OK":
-                        return None
-
-                    if (len(response_data["result"]) > 0):
-                        new_last = response_data["result"][0]["id"]
-
-                    ret = [f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}" for sub in response_data["result"] if sub["verdict"] == "OK" and "contestId" in sub]
+                        for sub in response_data["result"]:
+                            if sub["verdict"] == "OK" and "contestId" in sub:
+                                ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
+                        
+                        if len(response_data["result"]) < 5000:
+                            break
+                                    
+                        ind += 5000
 
                 except Exception as e:
                     logger.error(f"Error when getting submissions: {e}")
                     return None
     # write to db
     if new_last != -1:
+        ret = list(set(ret))
         try:
             async with aiosqlite.connect(util.path + "bot_data.db") as db:
                 await db.execute("""
