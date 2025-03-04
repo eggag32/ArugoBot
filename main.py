@@ -57,8 +57,8 @@ def global_cooldown():
         user_id = ctx.author.id
         now = time.time()
         
-        if user_id in user_cooldowns and now - user_cooldowns[user_id] < 2:
-            remaining = 2 - (now - user_cooldowns[user_id])
+        if user_id in user_cooldowns and now - user_cooldowns[user_id] < 3:
+            remaining = 3 - (now - user_cooldowns[user_id])
             await ctx.send("Too many requests.", delete_after=2)
             return False
         
