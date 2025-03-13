@@ -3,22 +3,20 @@ import discord
 import aiosqlite
 import asyncio
 import logging
-from urllib.request import urlopen
+from exceptions import DatabaseError, RequestError
+from pathlib import Path
 
 logger = logging.getLogger("bot_logger")
-path = "/Users/eggag32/Documents/Bot/ArugoBot/"
+path = str(Path(__file__).parent) + "/"
 
 problems = None
 problem_dict = None
 initialized = False
 
-async def get_problems():
+async def get_problems(egg):
     global problems
     global problem_dict
-    URL = "https://codeforces.com/api/problemset.problems"
-    response = urlopen(URL)
-    await asyncio.sleep(2)
-    response_data = json.loads(response.read())
+    response_data = await egg.codeforces("problemset.problems")
     if response_data["status"] != "OK":
         return
     problems = response_data["result"]["problems"]
@@ -27,21 +25,18 @@ async def get_problems():
     for problem in problems:
         problem_dict[str(problem["contestId"]) + problem["index"]] = problem
 
-async def fix_handles():
+async def fix_handles(egg):
     try:
         async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT handle FROM users") as cursor:
                 rows = await cursor.fetchall()
-                await fix([row[0] for row in rows])
+                await fix(egg, [row[0] for row in rows])
     except Exception as e:
         logger.error(f"Database error: {e}")
 
-async def get_new_handle(handle):
+async def get_new_handle(egg, handle):
     try:
-        URL = f"https://codeforces.com/api/user.info?handles={handle}"
-        response = urlopen(URL)
-        await asyncio.sleep(2)
-        response_data = json.loads(response.read())
+        response_data = await egg.codeforces("user.info", {"handles": handle})
         if response_data["status"] != "OK":
             return handle
         return response_data["result"][0]["handle"]
@@ -51,12 +46,12 @@ async def get_new_handle(handle):
         logger.error(f"Access error: {e}")
         return handle
 
-async def fix(handles):
+async def fix(egg, handles):
     logger.info(handles)
     try:
         async with aiosqlite.connect(path + "bot_data.db") as db:
             for handle in handles:
-                new_handle = await get_new_handle(handle)
+                new_handle = await get_new_handle(egg, handle)
                 if new_handle != handle:
                     logger.info(f"Change from {handle} to {new_handle}.")
                     await db.execute("UPDATE users SET handle = ? WHERE handle = ?", (new_handle, handle))
@@ -85,7 +80,7 @@ def getColor(rating):
         return discord.Color.from_rgb(255, 105, 180)
     return discord.Color.from_rgb(173, 216, 230)
 
-async def parse_data():
+async def parse_data(egg):
     global initialized
     if initialized:
         return
@@ -94,9 +89,9 @@ async def parse_data():
     while True:
         try:
             logger.info("Parsing data...")
-            await get_problems()
+            await get_problems(egg)
             logger.info("Fixing handles...")
-            await fix_handles() # hi thomas
+            await fix_handles(egg) # hi thomas
             # add submission parsing?
             logger.info("Data parsing complete.")
         except Exception as e:
@@ -104,18 +99,16 @@ async def parse_data():
 
         await asyncio.sleep(3600)
 
-async def handle_exists_on_cf(handle: str):
+async def handle_exists_on_cf(egg, handle: str):
     for c in handle:
-        if not (c.isalpha() or c.isdigit() or c == '_' or c == '-'):
+        if not (c.isalpha() or (c >= '0' and c <= '9') or c == '_' or c == '-' or c == '.'):
             return False
     try:
-        URL = f"https://codeforces.com/api/user.info?handles={handle}"
-        response = urlopen(URL)
-        await asyncio.sleep(2)
-        response_data = json.loads(response.read())
+        response_data = await egg.codeforces("user.info", {"handles": handle})
         return response_data["status"] == "OK" and response_data["result"][0]["handle"].lower() == handle.lower()
     except Exception as e:
         logger.error(f"Request error: {e}")
+        raise RequestError(e)
 
 async def handle_exists(server_id: int, user_id: int, handle: str):
     try:
@@ -138,6 +131,7 @@ async def handle_linked(server_id: int, user_id: int):
                 return False
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 async def get_handle(server_id: int, user_id: int):
     try:
@@ -168,6 +162,7 @@ async def get_rating(server_id: int, user_id: int):
                 return -1
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 async def get_history(server_id: int, user_id: int):
     try:
@@ -179,6 +174,7 @@ async def get_history(server_id: int, user_id: int):
                 return []
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 async def get_rating_history(server_id: int, user_id: int):
     try:
@@ -190,6 +186,7 @@ async def get_rating_history(server_id: int, user_id: int):
                 return []
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 async def add_to_history(server_id: int, user_id: int, problem: str):
     try:
@@ -203,6 +200,7 @@ async def add_to_history(server_id: int, user_id: int, problem: str):
                     await db.commit()
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 def format_time(seconds: float):
     minutes, seconds = divmod(int(seconds), 60)
@@ -218,7 +216,7 @@ async def get_leaderboard(server_id: int):
         logger.error(f"Database error: {e}")
         return None
 
-async def get_history(server_id: int, user_id: int):
+async def get_history_with_rating_history(server_id: int, user_id: int):
     try:
         async with aiosqlite.connect(path + "bot_data.db") as db:
             async with db.execute("SELECT history, rating_history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
@@ -228,4 +226,4 @@ async def get_history(server_id: int, user_id: int):
                 return None
     except Exception as e:
         logger.error(f"Database error: {e}")
-        return None
+        raise DatabaseError(e)

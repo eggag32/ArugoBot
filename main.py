@@ -5,6 +5,7 @@ import aiosqlite
 import util
 import time
 import logging
+import proxy
 from discord.ext import commands
 
 intents = discord.Intents.default()
@@ -81,7 +82,6 @@ def global_cooldown():
 @bot.event
 async def on_ready():
     logger.info(f'Logged in as {bot.user}')
-    bot.loop.create_task(util.parse_data())
     await init_database()
 
 @bot.command(help="Pings the bot")
@@ -90,7 +90,11 @@ async def ping(ctx):
     await ctx.send('Pong!')
 
 async def load_cogs():
-    for filename in os.listdir(util.path + "/commands"):
+    egg = await proxy.eggfetch()
+    bot.egg = egg
+    await init_database()
+    bot.loop.create_task(util.parse_data(egg))
+    for filename in os.listdir(util.path + "commands"):
         if filename.endswith(".py") and filename != "__init__.py":
             try:
                 await bot.load_extension(f"commands.{filename[:-3]}")

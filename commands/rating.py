@@ -5,33 +5,32 @@ import io
 import logging
 from discord.ext import commands
 from main import global_cooldown
-from discord.utils import escape_mentions
 
 logger = logging.getLogger("bot_logger")
 
 class Rating(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.egg = bot.egg
 
     @commands.command(help="Shows your rating")
     @global_cooldown()
     async def rating(self, ctx, member: discord.Member = None):
-        if not member is None:
-            if not isinstance(member, discord.Member):
-                await ctx.send("Invalid member.")
+        try:
+            if not member is None:
+                if not isinstance(member, discord.Member):
+                    await ctx.send("Invalid member.")
+                    return
+            id = member.id if member else ctx.author.id
+            name = member.name if member else ctx.author.name
+            mention = member.mention if member else ctx.author.mention
+            if not await util.handle_linked(ctx.guild.id, id):
+                await ctx.send("Handle not linked.")
                 return
-
-        id = member.id if member else ctx.author.id
-        name = member.name if member else ctx.author.name
-        mention = member.mention if member else ctx.author.mention
-        if not await util.handle_linked(ctx.guild.id, id):
-            await ctx.send("Handle not linked.")
-            return
-        r = await util.get_rating(ctx.guild.id, id)
-        if r == -1:
-            await ctx.send("Something went wrong, somehow the user doesn't have a rating...")
-        else:
-            try:
+            r = await util.get_rating(ctx.guild.id, id)
+            if r == -1:
+                await ctx.send("Something went wrong, somehow the user doesn't have a rating...")
+            else:
                 pY = await util.get_rating_history(ctx.guild.id, id)
                 pX = [i + 1 for i in range(len(pY))]
                 fig, ax = plt.subplots()
@@ -60,8 +59,9 @@ class Rating(commands.Cog):
                 embed = discord.Embed(title="Rating graph", description=f"{mention}'s rating is {r}", color=discord.Color.blue())
                 embed.set_image(url="attachment://image.png")
                 await ctx.send(file=discord_file, embed=embed)
-            except Exception as e:
-                logger.error(f"Something went wrong: {e}")
+        except Exception as e:
+            logger.error(f"Something went wrong: {e}")
+            await ctx.send("Something went wrong.")
 
 
 async def setup(bot):

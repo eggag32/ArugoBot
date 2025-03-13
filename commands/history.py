@@ -9,6 +9,7 @@ logger = logging.getLogger("bot_logger")
 class History(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.egg = bot.egg
 
     @commands.command(help="Shows your history")
     @global_cooldown()
@@ -16,9 +17,8 @@ class History(commands.Cog):
         if not isinstance(page, int) or page < 1:
             await ctx.send("Invalid page.")
             return
-
         try:
-            h = await util.get_history(ctx.guild.id, ctx.author.id)
+            h = await util.get_history_with_rating_history(ctx.guild.id, ctx.author.id)
             if h is None:
                 await ctx.send("No history...")
                 return
@@ -41,6 +41,7 @@ class History(commands.Cog):
             await ctx.send(embed=embed)
         except Exception as e:
             logger.error(f"Error in history: {e}")
+            await ctx.send("Something went wrong.")
 
 
 async def setup(bot):
