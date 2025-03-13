@@ -1,7 +1,7 @@
 # ArugoBot
 When my friends and I were practicing for competitive programming contests we used [Arugo](https://github.com/phattd15/arugo) quite a bit, and it was a lot of fun.
-After some time it stopped being hosted (I rehosted it [here](https://eggag33.pythonanywhere.com/) and it seems to work though).
-So I decided to write a Discord bot with similar functionality: my hope is that it makes it more convenient to practice with others.
+After some time it stopped being hosted (I rehosted it [here](https://eggag33.pythonanywhere.com/) and it seems to work, but maybe don't trust it with sensitive information).
+So I decided to write a Discord bot with similar functionality: my hope is that it makes it more convenient and fun to practice with others.
 Credit (and thanks!) to [phattd15](https://github.com/phattd15)/[polarity-ac](https://github.com/polarity-ac) for the original idea!
 
 ## Usage
@@ -34,4 +34,4 @@ The following commands are available to you:
 
 ## Installation
 To invite the instance I am hosting, use this [link](https://discord.com/oauth2/authorize?client_id=1325529003473240124&permissions=277025507392&integration_type=0&scope=bot).
-If you want to host it, all you need to do is make sure you install everything from ```requirements.txt```, add a ```token.txt``` file that contains your Discord bot token, and run ```main.py```.
+If you want to host it, you need to install everything from ```requirements.txt```, add a ```token.txt``` file that contains your Discord bot token, add a ```proxies.json``` file (alternatively, you can change the ```proxy.py``` file to just send the requests without proxies), and run ```main.py```.
