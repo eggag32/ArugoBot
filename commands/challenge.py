@@ -8,7 +8,6 @@ import logging
 from exceptions import DatabaseError
 from main import global_cooldown
 from discord.ext import commands
-from urllib.request import urlopen
 
 logger = logging.getLogger("bot_logger")
 active_chal = set()
@@ -109,6 +108,13 @@ class Challenge(commands.Cog):
                     await message.edit(embed=embed)
                     return
 
+            for id in user_list:
+                if (id, ctx.guild.id) in active_chal:
+                    await ctx.send("One or more users are already in a challenge.")
+                    embed.description = "Confirmation failed :x:"
+                    await message.edit(embed=embed)
+                    return
+
             embed.description = "Challenge confirmed :white_check_mark:"
             for id in user_list:
                 active_chal.add((id, ctx.guild.id))
@@ -158,7 +164,11 @@ class Challenge(commands.Cog):
             message = await ctx.channel.fetch_message(message.id)
             await message.edit(embed=chal_embed)
             
-            await asyncio.gather(*tasks)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for result in results:
+                if isinstance(result, Exception):
+                    raise result
 
             if sum(solved) < len(user_list):
                 await wait_for_queue(self.egg, ctx.guild.id, user_list, now, length, problem)
@@ -188,6 +198,8 @@ class Challenge(commands.Cog):
             await message.edit(embed=chal_embed)
         except Exception as e:
             logger.error(f"Some error: {e}")
+            if (ctx.guild.id, ctx.author.id) in active_chal:
+                active_chal.remove((ctx.author.id, ctx.guild.id))
             await ctx.send("Something went wrong.")
         
 
@@ -267,13 +279,15 @@ async def update_rating(server_id: int, user_id: int, rating: int, problem: str)
                     hist = json.loads(row[0])
                     hist.append(rating)
                 else:
-                    hist = [rating]
+                    raise RuntimeError("Peter probably unlinked his account upd")
             await db.execute("UPDATE users SET rating = ?, rating_history = ? WHERE server_id = ? AND user_id = ?", (rating, json.dumps(hist), server_id, user_id))
             async with db.execute("SELECT history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
                 row = await cursor.fetchone()
                 if row:
                     history = json.loads(row[0])
                     history.append(problem)
+                else:
+                    raise RuntimeError("Peter probably unlinked his account upd2")
             await db.execute("UPDATE users SET history = ? WHERE server_id = ? AND user_id = ?", (json.dumps(history), server_id, user_id))
             await db.commit()
     except Exception as e:

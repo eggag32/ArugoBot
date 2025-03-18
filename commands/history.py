@@ -45,7 +45,7 @@ class History(commands.Cog):
                     break
                 name = h[0][ind + i]
                 s += f"- [{name}. {util.problem_dict[name]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[name]["contestId"]}/{util.problem_dict[name]["index"]})"
-                s += f" (rating change: {h[1][ind + i] - h[1][ind + i + 1]})\n"
+                s += f" (rating change: {h[1][ind + i + 1]} -> {h[1][ind + i]}, {h[1][ind + i] - h[1][ind + i + 1]})\n"
             embed.add_field(name="Problems", value=s, inline=False)
             await ctx.send(embed=embed)
         except Exception as e:

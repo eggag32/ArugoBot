@@ -120,6 +120,7 @@ async def handle_exists(server_id: int, user_id: int, handle: str):
                 return False
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 async def handle_linked(server_id: int, user_id: int):
     try:
@@ -140,9 +141,10 @@ async def get_handle(server_id: int, user_id: int):
                 row = await cursor.fetchone()
                 if row:
                     return row[0]
-                return None
+                raise RuntimeError("Peter probably unlinked his account handle")
     except Exception as e:
         logger.error(f"Database error: {e}")
+        raise DatabaseError(e)
 
 def get_rating_changes(old_rating: int, problem_rating: int, length: int):
     # adjust for length
@@ -159,7 +161,7 @@ async def get_rating(server_id: int, user_id: int):
                 row = await cursor.fetchone()
                 if row:
                     return row[0]
-                return -1
+                raise RuntimeError("Peter probably unlinked his account rating")
     except Exception as e:
         logger.error(f"Database error: {e}")
         raise DatabaseError(e)

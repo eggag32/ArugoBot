@@ -47,11 +47,12 @@ class Suggest(commands.Cog):
             handles = []
 
             for u in user_list:
-                h = await util.get_handle(ctx.guild.id, u)
-                if h is None:
+                try:
+                    h = await util.get_handle(ctx.guild.id, u)
+                    handles.append(h)
+                except Exception as e:
                     await ctx.send("One or more users have not linked a handle.")
                     return
-                handles.append(h)
 
             s = []
             bad_handles = []

@@ -23,8 +23,12 @@ class Register(commands.Cog):
             await ctx.send("Invalid handle.")
             return
         try: 
-            b = await util.handle_exists_on_cf(self.egg, handle)
-            if not b:
+            try:
+                b = await util.handle_exists_on_cf(self.egg, handle)
+                if not b:
+                    await ctx.send("Invalid handle.")
+                    return
+            except Exception as e:
                 await ctx.send("Invalid handle.")
                 return
             # check that it is not in the database already (for this server)
