@@ -23,6 +23,7 @@ class Challenge(commands.Cog):
                         problem: str = commands.param(description=": Problem for the challenge (e.g. 1000A)"),
                         length: int = commands.param(description=": Length of the challenge in minutes (40/60/80)"),
                         users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
+        user_list = None
         try:
             if not isinstance(problem, str):
                 await ctx.send("Problem must be a string.")
@@ -198,8 +199,10 @@ class Challenge(commands.Cog):
             await message.edit(embed=chal_embed)
         except Exception as e:
             logger.error(f"Some error: {e}")
-            if (ctx.guild.id, ctx.author.id) in active_chal:
-                active_chal.remove((ctx.author.id, ctx.guild.id))
+            if user_list is not None:
+                for id in user_list:
+                    if (id, ctx.guild.id) in active_chal:
+                        active_chal.remove((id, ctx.guild.id))
             await ctx.send("Something went wrong.")
         
 
