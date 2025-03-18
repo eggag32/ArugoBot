@@ -11,32 +11,40 @@ class History(commands.Cog):
         self.bot = bot
         self.egg = bot.egg
 
-    @commands.command(help="Shows your history")
+    @commands.command(help="Shows the history of a user")
     @global_cooldown()
-    async def history(self, ctx, page: int = 1):
+    async def history(self, ctx, member: discord.Member = None, page: int = 1):
         if not isinstance(page, int) or page < 1:
             await ctx.send("Invalid page.")
             return
+        if not member is None:
+            if not isinstance(member, discord.Member):
+                await ctx.send("Invalid member.")
+                return
+        id = member.id if member else ctx.author.id
+        name = member.name if member else ctx.author.name
         try:
-            h = await util.get_history_with_rating_history(ctx.guild.id, ctx.author.id)
+            h = await util.get_history_with_rating_history(ctx.guild.id, id)
             if h is None:
                 await ctx.send("No history...")
                 return
             if util.problem_dict is None:
                 await ctx.send("Wait a bit.")
                 return
+            h[0].reverse()
+            h[1].reverse()
             ind = (page - 1) * 10
             if ind >= len(h[0]):
                 await ctx.send("Empty page.")
                 return
-            embed = discord.Embed(title="History", description=f"Page {page}", color=discord.Color.blue())
+            embed = discord.Embed(title=f"History of {name}", description=f"Page {page}", color=discord.Color.blue())
             s = ""
             for i in range(10):
                 if ind + i >= len(h[0]):
                     break
                 name = h[0][ind + i]
                 s += f"- [{name}. {util.problem_dict[name]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[name]["contestId"]}/{util.problem_dict[name]["index"]})"
-                s += f" (rating change: {h[1][ind + i + 1] - h[1][ind + i]})\n"
+                s += f" (rating change: {h[1][ind + i] - h[1][ind + i + 1]})\n"
             embed.add_field(name="Problems", value=s, inline=False)
             await ctx.send(embed=embed)
         except Exception as e:

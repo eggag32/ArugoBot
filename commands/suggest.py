@@ -84,7 +84,7 @@ class Suggest(commands.Cog):
                 s += f"- [{sug_list[i]["contestId"]}{sug_list[i]["index"]}. {sug_list[i]["name"]}](https://codeforces.com/problemset/problem/{sug_list[i]["contestId"]}/{sug_list[i]["index"]})"
                 if i != min(10, len(sug_list)) - 1:
                     s += "\n"
-            embed = discord.Embed(title=f"Problem suggestions", description=s, color=util.getColor(rating))
+            embed = discord.Embed(title=f"Problem suggestions for users ({', '.join(handles)})", description=s, color=util.getColor(rating))
             await ctx.send(embed=embed)
         except Exception as e:
             logger.error(f"Some error: {e}")

@@ -60,22 +60,18 @@ class Register(commands.Cog):
                 return
             embed = discord.Embed(title="Confirm", description="Are you sure? This action cannot be undone. React with :white_check_mark: within 60 seconds to confirm.", color=discord.Color.blue())
             message = await ctx.send(embed=embed)
-            await asyncio.sleep(60)
-            message = await ctx.channel.fetch_message(message.id)
-            bad = True
-            for reaction in message.reactions:
-                if str(reaction.emoji) == "✅":
-                    reactors = [user.id async for user in reaction.users()]
-                    if ctx.author.id in reactors:
-                        bad = False
-                    break
-            if bad:
-                embed.description = "Account not unlinked."
-                await message.edit(embed=embed)
-                return
-            else:
+            await message.add_reaction("✅")
+
+            def check(reaction, user):
+                return user.id == ctx.author.id and str(reaction.emoji) == "✅" and reaction.message.id == message.id
+
+            try:
+                reaction, user = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
                 await unlink(ctx.guild.id, ctx.author.id)
                 embed.description = "Account unlinked."
+                await message.edit(embed=embed)
+            except Exception as e:
+                embed.description = "Account not unlinked."
                 await message.edit(embed=embed)
         except Exception as e:
             logger.error(f"Some error: {e}")

@@ -82,7 +82,7 @@ class EggFetch:
     dispatcher_error_wait = 60.0
     dispatcher_error_mul = 1.5
     timeout = 90.0
-    max_retry = 10
+    max_retry = 5
 
     tasks: set[asyncio.Task] = set()
     

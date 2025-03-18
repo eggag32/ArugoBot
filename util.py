@@ -188,20 +188,6 @@ async def get_rating_history(server_id: int, user_id: int):
         logger.error(f"Database error: {e}")
         raise DatabaseError(e)
 
-async def add_to_history(server_id: int, user_id: int, problem: str):
-    try:
-        async with aiosqlite.connect(path + "bot_data.db") as db:
-            async with db.execute("SELECT history FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id)) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    history = json.loads(row[0])
-                    history.append(problem)
-                    await db.execute("UPDATE users SET history = ? WHERE server_id = ? AND user_id = ?", (json.dumps(history), server_id, user_id))
-                    await db.commit()
-    except Exception as e:
-        logger.error(f"Database error: {e}")
-        raise DatabaseError(e)
-
 def format_time(seconds: float):
     minutes, seconds = divmod(int(seconds), 60)
     return f"{minutes}:{seconds:02d}"
