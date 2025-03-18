@@ -17,18 +17,17 @@ class Suggest(commands.Cog):
 
     @commands.command(help="Suggests a problem")
     @global_cooldown()
-    async def suggest(self, ctx, rating: int, *handles):
+    async def suggest(self, ctx, rating: int = commands.param(description=": Rating of problems to suggest"),
+                      users: commands.Greedy[discord.Member] = commands.param(description=": Users to suggest for other than you (e.g. @eggag33) (optional)")):
         try:
             if not isinstance(rating, int):
                 await ctx.send("Rating should be an integer.")
                 return
-            for h in handles:
-                if not isinstance(h, str):
-                    await ctx.send("Handles should be strings.")
-                    return
-
-            if (len(handles) > 5):
-                await ctx.send("Too many people (limit is 5).")
+            if not isinstance(users, list):
+                await ctx.send("Users must be a list.")
+                return
+            if not all(isinstance(user, discord.Member) for user in users):
+                await ctx.send("Some inputs were not valid members.")
                 return
 
             if (rating < 800 or rating > 3500) or (rating % 100 != 0):
@@ -40,6 +39,19 @@ class Suggest(commands.Cog):
                 return
 
             pos_problems = [p for p in util.problems if p["rating"] == rating]
+
+            user_list = [member.id for member in users]
+            user_list.append(ctx.author.id)
+            user_list = list(set(user_list))
+
+            handles = []
+
+            for u in user_list:
+                h = await util.get_handle(ctx.guild.id, u)
+                if h is None:
+                    await ctx.send("One or more users have not linked a handle.")
+                    return
+                handles.append(h)
 
             s = []
             bad_handles = []

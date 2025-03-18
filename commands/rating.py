@@ -15,7 +15,7 @@ class Rating(commands.Cog):
 
     @commands.command(help="Shows your rating")
     @global_cooldown()
-    async def rating(self, ctx, member: discord.Member = None):
+    async def rating(self, ctx, member: discord.Member = commands.param(default=None, description=": User to show rating of (e.g. @eggag32) (optional)")):
         try:
             if not member is None:
                 if not isinstance(member, discord.Member):

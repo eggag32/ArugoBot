@@ -20,7 +20,10 @@ class Challenge(commands.Cog):
 
     @commands.command(help="Get a challenge")
     @global_cooldown()
-    async def challenge(self, ctx, problem: str, length: int, users: commands.Greedy[discord.Member]):
+    async def challenge(self, ctx, 
+                        problem: str = commands.param(description=": Problem for the challenge (e.g. 1000A)"),
+                        length: int = commands.param(description=": Length of the challenge in minutes (40/60/80)"),
+                        users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
         try:
             if not isinstance(problem, str):
                 await ctx.send("Problem must be a string.")

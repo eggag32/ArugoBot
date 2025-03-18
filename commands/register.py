@@ -18,7 +18,7 @@ class Register(commands.Cog):
 
     @commands.command(help="Links your handle")
     @global_cooldown()
-    async def register(self, ctx, handle: str):
+    async def register(self, ctx, handle: str = commands.param(description=": Handle to link (e.g. eggag32)")):
         if not isinstance(handle, str):
             await ctx.send("Invalid handle.")
             return

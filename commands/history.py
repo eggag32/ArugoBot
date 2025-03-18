@@ -13,7 +13,8 @@ class History(commands.Cog):
 
     @commands.command(help="Shows the history of a user")
     @global_cooldown()
-    async def history(self, ctx, member: discord.Member = None, page: int = 1):
+    async def history(self, ctx, member: discord.Member = commands.param(default=None, description=": User to show history of (e.g. @eggag32) (optional)"),
+                      page: int = commands.param(default=1, description=": Page number")):
         if not isinstance(page, int) or page < 1:
             await ctx.send("Invalid page.")
             return
