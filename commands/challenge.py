@@ -35,7 +35,7 @@ class Challenge(commands.Cog):
                 await ctx.send("Some inputs were not valid members.")
                 return
 
-            if not (length == 40 or length == 60 or length == 80 or length == 1):
+            if not (length == 40 or length == 60 or length == 80):
                 await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
                 return
             if not problem in util.problem_dict:
