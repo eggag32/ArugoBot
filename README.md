@@ -25,9 +25,9 @@ The following commands are available to you:
 - **=unlink**
 
   Unlinks your CF account and erases all progress.
-- **=suggest [rating] [list of CF handles]**
+- **=suggest [rating] [users to suggest for other than you (i.e. @eggag32 @eggag33)]]**
 
-  Gives some problems at a given rating that none of the CF accounts have done.
+  Gives some problems at a given rating that none of the users have done.
 - **=help**
 
   Prints the help message.
