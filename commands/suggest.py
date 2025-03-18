@@ -1,6 +1,7 @@
 import util
 import discord
 import aiosqlite
+import asyncio
 import json
 import random
 import logging
@@ -74,7 +75,7 @@ class Suggest(commands.Cog):
             sug_list = []
             while num < 100 and len(sug_list) < 10:
                 problem = random.choice(pos_problems)
-                pr = f"{problem['contestId']}{problem['index']}"
+                pr = f"{problem["contestId"]}{problem["index"]}"
                 pos_problems.remove(problem)
                 for i in range(len(s)):
                     if pr in s[i]:
@@ -117,7 +118,7 @@ async def get_solved(egg, handle: str):
                 prev_last = row[2] 
                 cur_list = json.loads(row[1])
                 try:
-                    response_data = await egg.codeforces("user.status", {"handle": handle, "from": 1, "count": 20})
+                    response_data = await egg.codeforces("user.status", {"handle": handle, "from": 1, "count": 100})
                     
                     if response_data["status"] != "OK":
                         return cur_list
@@ -138,26 +139,9 @@ async def get_solved(egg, handle: str):
                             break
                     
                     if not found:
-                        ind = 1
-                        while (ind // 5000) < 4: # this should be large enough for reasonable users...
-                            response_data = await egg.codeforces("user.status", {"handle": handle, "from": ind, "count": 5000})
-
-                            logger.info(len(response_data["result"]))
-
-                            if (len(response_data["result"]) > 0 and ind == 1):
-                                new_last = response_data["result"][0]["id"]
-
-                            if len(response_data["result"]) == 0:
-                                break
-                            
-                            for sub in response_data["result"]:
-                                if sub["verdict"] == "OK" and "contestId" in sub:
-                                    ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
-
-                            if len(response_data["result"]) < 5000:
-                                break
-
-                            ind += 5000
+                        nl = [0]
+                        await large_query(egg, handle, ret, nl)
+                        new_last = nl[0]
 
                 except Exception as e:
                     logger.error(f"Error when getting submissions: {e}")
@@ -166,27 +150,9 @@ async def get_solved(egg, handle: str):
             else:
                 logger.info("Large query.")
                 try:
-                    ind = 1
-                    while (ind // 5000) < 4:
-                        response_data = await egg.codeforces("user.status", {"handle": handle, "from": ind, "count": 5000})
-
-                        logger.info(len(response_data["result"]))
-                        logger.info(ind)
-
-                        if (len(response_data["result"]) > 0 and ind == 1):
-                            new_last = response_data["result"][0]["id"]
-                        
-                        if len(response_data["result"]) == 0:
-                            break
-
-                        for sub in response_data["result"]:
-                            if sub["verdict"] == "OK" and "contestId" in sub:
-                                ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
-                        
-                        if len(response_data["result"]) < 5000:
-                            break
-                                    
-                        ind += 5000
+                    nl = [0]
+                    await large_query(egg, handle, ret, nl)
+                    new_last = nl[0]
 
                 except Exception as e:
                     logger.error(f"Error when getting submissions: {e}")
@@ -205,3 +171,27 @@ async def get_solved(egg, handle: str):
             logger.error(f"Database error: {e}")
             raise DatabaseError(e)
     return ret
+
+async def get_ac(egg, handle: str, start: int, ret: list):
+    try:
+        response_data = await egg.codeforces("user.status", {"handle": handle, "from": start, "count": 5000})
+        for sub in response_data["result"]:
+            if sub["verdict"] == "OK" and "contestId" in sub:
+                ret.append(sub)
+    except Exception as e:
+        logger.error(f"Error when getting submissions: {e}")
+        raise RequestError(e)
+
+async def large_query(egg, handle: str, ret: list, new_last: list):
+    subs = []
+    tasks = [asyncio.create_task(get_ac(egg, handle, 1 + 5000 * k, subs)) for k in range(4)]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for result in results:
+        if isinstance(result, Exception):
+            raise result
+        
+    subs.sort(key=lambda x: x["creationTimeSeconds"], reverse=True)
+    new_last[0] = subs[0]["id"]
+    for sub in subs:
+        ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")

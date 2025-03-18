@@ -31,26 +31,31 @@ class Register(commands.Cog):
             except Exception as e:
                 await ctx.send("Invalid handle.")
                 return
-            # check that it is not in the database already (for this server)
-            if await util.handle_exists(ctx.guild.id, ctx.author.id, handle):
-                await ctx.send("Handle taken in this server.")
-                return
             # check that user does not already have a handle
             if await util.handle_linked(ctx.guild.id, ctx.author.id):
                 await ctx.send("You already linked a handle (use unlink if you wish to remove it).")
                 return
+            # check that it is not in the database already (for this server)
+            if await util.handle_exists(ctx.guild.id, ctx.author.id, handle):
+                await ctx.send("Handle taken in this server.")
+                return
             # now give them the verification challenge
-            ret = await validate_handle(ctx, self.egg, ctx.guild.id, ctx.author.id, handle)
+            msg = [0]
+            ret = await validate_handle(ctx, self.egg, ctx.guild.id, ctx.author.id, handle, msg)
+            cont = ""
             if ret == 1:
-                await ctx.send(f"Handle set to {handle}.")
+                cont = f"Handle set to {handle}."
             elif ret == 2:
-                await ctx.send("Verification failed.")
+                cont = "Verification failed."
             elif ret == 3:
-                await ctx.send("Handle has been taken (;-; are you trying to break me).")
+                cont = "Handle has been taken (;-; are you trying to break me)."
             elif ret == 4:
-                await ctx.send("You already linked a handle (during verification, is this a test?).")
+                cont = "You already linked a handle (during verification, is this a test?)."
             else:
-                await ctx.send("Some error (maybe CF is down).")
+                cont = "Some error (maybe CF is down)."
+            message = await ctx.channel.fetch_message(msg[0])
+            reg_embed = discord.Embed(title="Verify your handle", description=cont, color=discord.Color.blue())
+            await message.edit(embed=reg_embed)
         except Exception as e:
             logger.error(f"Some error: {e}")
             await ctx.send("Some error occurred.")
@@ -85,12 +90,7 @@ class Register(commands.Cog):
 async def setup(bot):
     await bot.add_cog(Register(bot))
 
-async def validate_handle(ctx, egg, server_id: int, user_id: int, handle: str):
-    # 1 - ok
-    # 2 - didn't receive
-    # 3 - handle exists
-    # 4 - you have a handle
-    # 5 - some other error
+async def validate_handle(ctx, egg, server_id: int, user_id: int, handle: str, msg: list):
     if util.problems is None:
         try:
             await util.get_problems()    
@@ -100,7 +100,9 @@ async def validate_handle(ctx, egg, server_id: int, user_id: int, handle: str):
 
     problem = util.problems[random.randint(0, len(util.problems) - 1)]
     t = time.time()
-    await ctx.send(f"Submit a compilation error to the following problem in the next 60 seconds:\nhttps://codeforces.com/problemset/problem/{problem['contestId']}/{problem['index']}")
+    embed = discord.Embed(title="Verify your handle", description=f"Submit a compilation error to the following problem in the next 60 seconds:\nhttps://codeforces.com/problemset/problem/{problem['contestId']}/{problem['index']}", color=discord.Color.blue())
+    message = await ctx.send(embed=embed)
+    msg[0] = message.id
 
     await asyncio.sleep(60)
     if not await got_submission(egg, handle, problem, t):
@@ -150,7 +152,7 @@ async def got_submission(egg, handle: str, problem, t):
                 return o["creationTimeSeconds"] > t
 
     except Exception as e:
-        logger.error(f"Error getting submission: {e}")
+        logger.error(f"Error getting submission, got_submission(): {e}")
         return False
 
 async def unlink(server_id: int, user_id: int):
@@ -159,5 +161,5 @@ async def unlink(server_id: int, user_id: int):
             await db.execute("DELETE FROM users WHERE server_id = ? AND user_id = ?", (server_id, user_id))
             await db.commit()
     except Exception as e:
-        logger.error(f"Database error: {e}")
+        logger.error(f"Database error, unlink(): {e}")
         raise DatabaseError(e)

@@ -192,7 +192,6 @@ class EggFetch:
 
         return await self.fetch(transform, url)
 
-# not actually async, but apparently idiomatic since aiohttp does it!
 async def eggfetch():
     ret = EggFetch()
     await ret.add_proxies()
