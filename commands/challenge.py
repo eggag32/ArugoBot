@@ -24,6 +24,7 @@ class Challenge(commands.Cog):
                         length: int = commands.param(description=": Length of the challenge in minutes (40/60/80)"),
                         users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
         user_list = None
+        mid = -1
         try:
             if not isinstance(problem, str):
                 await ctx.send("Problem must be a string.")
@@ -38,7 +39,7 @@ class Challenge(commands.Cog):
                 await ctx.send("Some inputs were not valid members.")
                 return
 
-            if not (length == 40 or length == 60 or length == 80):
+            if not (length == 40 or length == 60 or length == 80 or length == 2):
                 await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
                 return
             if not problem in util.problem_dict:
@@ -81,6 +82,7 @@ class Challenge(commands.Cog):
                 u += f"- <@{user_list[i]}>, {r} (don't solve: {l[0]}, solve: {l[1]})\n"
             embed.add_field(name="Users", value=u, inline=False)
             message = await ctx.send(embed=embed)
+            mid = message.id
             await message.add_reaction("✅")
 
             ready_users = set()
@@ -203,7 +205,12 @@ class Challenge(commands.Cog):
                 for id in user_list:
                     if (id, ctx.guild.id) in active_chal:
                         active_chal.remove((id, ctx.guild.id))
-            await ctx.send("Something went wrong.")
+            if mid == -1:
+                await ctx.send("Something went wrong.")
+            else:
+                chal_embed = discord.Embed(title="Challenge", description="Something went wrong, the challenge is stopped.", color=discord.Color.blue())
+                message = await ctx.channel.fetch_message(mid)
+                await message.edit(embed=chal_embed)
         
 
 async def setup(bot):
@@ -240,7 +247,6 @@ async def sub_in_queue(egg, server_id: int, user_id: int, start_time: int, lengt
 
     except Exception as e:
         logger.error(f"Error during challenge: {e}")
-        ok[0] |= True
         return
 
 async def check_ac(egg, server_id: int, user_id: int, problem: str, length: int, start_time: int, solved: list, index: int):
