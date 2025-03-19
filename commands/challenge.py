@@ -39,7 +39,7 @@ class Challenge(commands.Cog):
                 await ctx.send("Some inputs were not valid members.")
                 return
 
-            if not (length == 40 or length == 60 or length == 80 or length == 2):
+            if not (length == 40 or length == 60 or length == 80):
                 await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
                 return
             if not problem in util.problem_dict:
@@ -97,7 +97,7 @@ class Challenge(commands.Cog):
                 if payload.user_id in user_list and str(payload.emoji) == "✅" and payload.message_id == message.id:
                     if payload.user_id in ready_users:
                         ready_users.remove(payload.user_id)
-
+            
             while True:
                 try:
                     reaction, user = await self.bot.wait_for("reaction_add", timeout=30.0 - (asyncio.get_event_loop().time() - start_time), check=check)
@@ -135,16 +135,30 @@ class Challenge(commands.Cog):
                     l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
                     if solved[j] == 0:
                         u += f"- <@{user_list[j]}>, {r} (don't solve: {l[0]}, solve: {l[1]}) :hourglass:\n"
-                    else:
+                    elif solved[j] == 1:
                         u += f"- <@{user_list[j]}>, {r} :white_check_mark:\n"
+                    else:
+                        u += f"- <@{user_list[j]}>, {r} :x:\n"
                 return u
 
-            chal_embed = discord.Embed(title="Challenge", description="", color=discord.Color.blue())
+            chal_embed = discord.Embed(title="Challenge", description="To give up, react with ❌", color=discord.Color.blue())
             chal_embed.add_field(name="Time", value=f"Ends <t:{(int(now) + length * 60)}:R>", inline=False)
             chal_embed.add_field(name="Problem", value=p, inline=False)
             chal_embed.add_field(name="Users", value=await get_u(), inline=False)
             message = await ctx.channel.fetch_message(message.id)
             await message.edit(embed=chal_embed)
+            
+            @self.bot.event
+            async def on_raw_reaction_add(payload):
+                if payload.user_id in user_list and str(payload.emoji) == "❌" and payload.message_id == message.id:
+                    logger.info(f"Challenge cancelled by {payload.user_id}")
+                    ind = user_list.index(payload.user_id)
+                    r = await util.get_rating(ctx.guild.id, payload.user_id)
+                    l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
+                    if solved[ind] == 0 and (payload.user_id, ctx.guild.id) in active_chal:
+                        solved[ind] = 2
+                        active_chal.remove((payload.user_id, ctx.guild.id))
+                        await update_rating(ctx.guild.id, payload.user_id, r + l[0], problem)
 
             for i in range(0, length * 60, 10):
                 j = (i // 10) % len(user_list)
@@ -157,7 +171,7 @@ class Challenge(commands.Cog):
                 await asyncio.sleep(now + (i + 10) - time.time()) 
                 message = await ctx.channel.fetch_message(message.id)
                 await message.edit(embed=chal_embed)
-                if sum(solved) == len(user_list):
+                if min(solved) >= 1:
                     break
                 psum = sum(solved)
             
@@ -181,9 +195,10 @@ class Challenge(commands.Cog):
                     await check_ac(self.egg, ctx.guild.id, user_list[j], problem, length, now, solved, j)
                     if solved[j] == 0:
                         r = await util.get_rating(ctx.guild.id, user_list[j])
-                        active_chal.remove((user_list[j], ctx.guild.id))
-                        l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
-                        await update_rating(ctx.guild.id, user_list[j], r + l[0], problem)
+                        if (user_list[j], ctx.guild.id) in active_chal:
+                            active_chal.remove((user_list[j], ctx.guild.id))
+                            l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
+                            await update_rating(ctx.guild.id, user_list[j], r + l[0], problem)
             
             chal_embed = discord.Embed(title="Challenge results", description="", color=discord.Color.blue())
             p = f"[{util.problem_dict[problem]["index"]}. {util.problem_dict[problem]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[problem]["contestId"]}/{util.problem_dict[problem]["index"]})"
@@ -191,7 +206,7 @@ class Challenge(commands.Cog):
             u = ""
             for j in range(len(user_list)):
                 r = await util.get_rating(ctx.guild.id, user_list[j]) 
-                if solved[j] == 0:
+                if solved[j] == 0 or solved[j] == 2:
                     u += f"- <@{user_list[j]}>, {r} :x:\n"
                 else:
                     u += f"- <@{user_list[j]}>, {r} :white_check_mark:\n"
@@ -255,9 +270,11 @@ async def check_ac(egg, server_id: int, user_id: int, problem: str, length: int,
     if await got_ac(egg, handle, problem, length, start_time):
         r = await util.get_rating(server_id, user_id)
         l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
-        await update_rating(server_id, user_id, r + l[1], problem)
-        active_chal.remove((user_id, server_id))
+        if solved[index] != 0:
+            return
         solved[index] = 1
+        active_chal.remove((user_id, server_id))
+        await update_rating(server_id, user_id, r + l[1], problem)
 
 async def got_ac(egg, handle: str, problem: str, length: int, start_time: int):
     try:
