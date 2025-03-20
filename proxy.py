@@ -178,7 +178,7 @@ class EggFetch:
                 try:
                     r = json.loads(txt)
                 except json.JSONDecodeError as e:
-                    raise RuntimeError(f"CF error, body: {txt}") from e
+                    raise CFError(f"{txt}") from e
             else:
                 r = await resp.json()
 

@@ -6,11 +6,13 @@ import aiosqlite
 import json
 import logging
 from exceptions import DatabaseError
+from proxy import CFError
 from main import global_cooldown
 from discord.ext import commands
 
 logger = logging.getLogger("bot_logger")
 active_chal = set()
+cfDown = False
 
 class Challenge(commands.Cog):
     def __init__(self, bot):
@@ -23,6 +25,7 @@ class Challenge(commands.Cog):
                         problem: str = commands.param(description=": Problem for the challenge (e.g. 1000A)"),
                         length: int = commands.param(description=": Length of the challenge in minutes (40/60/80)"),
                         users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
+        global cfDown
         user_list = None
         mid = -1
         try:
@@ -137,11 +140,16 @@ class Challenge(commands.Cog):
                         u += f"- <@{user_list[j]}>, {r} (don't solve: {l[0]}, solve: {l[1]}) :hourglass:\n"
                     elif solved[j] == 1:
                         u += f"- <@{user_list[j]}>, {r} :white_check_mark:\n"
-                    else:
+                    elif solved[j] == 2:
                         u += f"- <@{user_list[j]}>, {r} :x:\n"
+                    else:
+                        u += f"- <@{user_list[j]}>, {r} :flag_white:\n"
                 return u
 
-            chal_embed = discord.Embed(title="Challenge", description="To give up, react with ❌", color=discord.Color.blue())
+            desc = "To give up, react with ❌"
+            if cfDown:
+                desc += "\nSeems Codeforces is down, react with ⚠️ to quit challenge without rating change"
+            chal_embed = discord.Embed(title="Challenge", description=desc, color=discord.Color.blue())
             chal_embed.add_field(name="Time", value=f"Ends <t:{(int(now) + length * 60)}:R>", inline=False)
             chal_embed.add_field(name="Problem", value=p, inline=False)
             chal_embed.add_field(name="Users", value=await get_u(), inline=False)
@@ -159,14 +167,25 @@ class Challenge(commands.Cog):
                         solved[ind] = 2
                         active_chal.remove((payload.user_id, ctx.guild.id))
                         await update_rating(ctx.guild.id, payload.user_id, r + l[0], problem)
+                if payload.user_id in user_list and str(payload.emoji) == "⚠️" and payload.message_id == message.id and cfDown:
+                    logger.info(f"Challenge cancelled by {payload.user_id} (cf down)")
+                    ind = user_list.index(payload.user_id)
+                    if solved[ind] == 0 and (payload.user_id, ctx.guild.id) in active_chal:
+                        solved[ind] = 3
+                        active_chal.remove((payload.user_id, ctx.guild.id))
 
             for i in range(0, length * 60, 10):
                 j = (i // 10) % len(user_list)
                 if solved[j] == 0:
                     tasks.append(asyncio.create_task(check_ac(self.egg, ctx.guild.id, user_list[j], problem, length, now, solved, j)))
-                if sum(solved) == psum and i % 60 != 0:
+                if sum(solved) == psum and i % 30 != 0:
                     await asyncio.sleep(now + (i + 10) - time.time()) 
                     continue
+
+                desc = "To give up, react with :x:"
+                if cfDown:
+                    desc += "\nSeems Codeforces is down, react with :warning: to quit challenge without rating change"
+                chal_embed.description = desc
                 chal_embed.set_field_at(2, name="Users", value=await get_u(), inline=False)
                 await asyncio.sleep(now + (i + 10) - time.time()) 
                 message = await ctx.channel.fetch_message(message.id)
@@ -176,6 +195,7 @@ class Challenge(commands.Cog):
                 psum = sum(solved)
             
             chal_embed.title = "Updating"
+            chal_embed.description = ""
             chal_embed.set_field_at(0, name="Time", value="Challenge ended", inline=False)
             chal_embed.set_field_at(2, name="Users", value=await get_u(), inline=False)
             message = await ctx.channel.fetch_message(message.id)
@@ -208,6 +228,8 @@ class Challenge(commands.Cog):
                 r = await util.get_rating(ctx.guild.id, user_list[j]) 
                 if solved[j] == 0 or solved[j] == 2:
                     u += f"- <@{user_list[j]}>, {r} :x:\n"
+                elif solved[j] == 3:
+                    u += f"- <@{user_list[j]}>, {r} :flag_white:\n"
                 else:
                     u += f"- <@{user_list[j]}>, {r} :white_check_mark:\n"
             
@@ -277,11 +299,14 @@ async def check_ac(egg, server_id: int, user_id: int, problem: str, length: int,
         await update_rating(server_id, user_id, r + l[1], problem)
 
 async def got_ac(egg, handle: str, problem: str, length: int, start_time: int):
+    global cfDown
     try:
         response_data = await egg.codeforces("contest.status", {"contestId" : util.problem_dict[problem]["contestId"], "asManager" : "false", "from" : 1, "count" : 100, "handle" : handle})
 
         if response_data["status"] != "OK":
             return False
+        
+        cfDown = False
 
         for o in response_data["result"]:
             if problem == str(str(o["problem"]["contestId"]) + o["problem"]["index"]) and o["verdict"] == "OK":
@@ -291,6 +316,8 @@ async def got_ac(egg, handle: str, problem: str, length: int, start_time: int):
         return False
 
     except Exception as e:
+        if isinstance(e, CFError):
+            cfDown = True
         logger.error(f"Error during challenge: {e}")
         return False
 
