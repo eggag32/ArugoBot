@@ -18,29 +18,9 @@ class Suggest(commands.Cog):
 
     @commands.command(help="Suggests a problem")
     @global_cooldown()
-    async def suggest(self, ctx, rating: str = commands.param(description=": Rating or rating range of problems to suggest"),
+    async def suggest(self, ctx, rating: int|str = commands.param(description=": Rating of problems to suggest"),
                       users: commands.Greedy[discord.Member] = commands.param(description=": Users to suggest for other than you (e.g. @eggag33) (optional)")):
         try:
-            if isinstance(rating, str) and ("-" in rating):
-                parts = rating.split("-")
-                if len(parts) == 2 and all(part.isdigit() for part in parts):
-                    l, r = map(int, parts)
-                    if l % 100 != 0:
-                        # Round up l to 100
-                        l = (l // 100) * 100 + 100  
-                    # Round r down to 100
-                    r = r // 100 * 100
-
-                    if l > r or (l < 800 or l > 3500) or (l % 100 != 0) or (r < 800 or r > 3500) or (rating % 100 != 0):
-                        await ctx.send("Rating (range) should be a multiple of 100 between 800 and 3500.")
-                        return
-
-                    # Floor random rating to 100
-                    rating = random.randint(l, r) // 100 * 100 
-                else:
-                    await ctx.send("Invalid rating range. Rating should be a number or a two numbers separated by '-'")
-                    return
-
             if not isinstance(rating, int):
                 await ctx.send("Rating should be an integer.")
                 return
@@ -52,7 +32,7 @@ class Suggest(commands.Cog):
                 return
 
             if (rating < 800 or rating > 3500) or (rating % 100 != 0):
-                await ctx.send("Rating (range) should be a multiple of 100 between 800 and 3500.")
+                await ctx.send("Rating should be a multiple of 100 between 800 and 3500.")
                 return
 
             if (util.problems is None):
