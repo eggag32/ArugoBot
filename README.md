@@ -8,24 +8,36 @@ Credit (and thanks!) to [phattd15](https://github.com/phattd15)/[polarity-ac](ht
 The following commands are available to you:
 
 - **=challenge [problem (i.e. 1000A)] [length in minutes (40/60/80)] [participants other than you (i.e. @eggag32 @eggag33)]**
-
+  
+  <img src="img/challenge.png" width="400">
+  
   Starts a challenge.
 - **=rating [optional username (i.e. @eggag32)]**
+  
+  <img src="img/rating.png" width="400">
   
   Shows your (or other user's) rating graph.
 - **=history [optional username (i.e. @eggag32)] [optional page number, 1 by default]**
 
+  <img src="img/history.png" width="400">
+  
   Shows a page of your (or someone else's) challenge history.
 - **=leaderboard [optional page number, 1 by default]**
 
+  <img src="img/leaderboard.png" width="400">
+  
   Shows a page of the server leaderboard.
 - **=register [handle]**
+
+  <img src="img/register.png" width="400">
 
   Links your CF account.
 - **=unlink**
 
   Unlinks your CF account and erases all progress.
 - **=suggest [rating] [users to suggest for other than you (i.e. @eggag32 @eggag33)]]**
+
+  <img src="img/suggest.png" width="400">
 
   Gives some problems at a given rating that none of the users have done.
 - **=help**
