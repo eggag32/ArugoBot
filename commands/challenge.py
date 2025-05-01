@@ -18,6 +18,43 @@ class Challenge(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.egg = bot.egg    
+        self.instances = {}
+
+    class challenge_instance:
+        def __init__(self, ready_users: set, user_list: list, solved: list, ctx, problem, length):
+            self.ready_users = ready_users
+            self.user_list = user_list
+            self.solved = solved
+            self.ctx = ctx
+            self.problem = problem
+            self.length = length
+    
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        if str(payload.emoji) == "✅" and payload.message_id in self.instances:
+            if payload.user_id in self.instances[payload.message_id].ready_users:
+                self.instances[payload.message_id].ready_users.remove(payload.user_id)
+    
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload):
+        if payload.message_id not in self.instances:
+            return
+        mid = payload.message_id
+        if payload.user_id in self.instances[mid].user_list and str(payload.emoji) == "❌":
+            logger.info(f"Challenge cancelled by {payload.user_id}")
+            ind = self.instances[mid].user_list.index(payload.user_id)
+            r = await util.get_rating(self.instances[mid].ctx.guild.id, payload.user_id)
+            l = util.get_rating_changes(r, util.problem_dict[self.instances[mid].problem]["rating"], self.instances[mid].length)
+            if self.instances[mid].solved[ind] == 0 and (payload.user_id, self.instances[mid].ctx.guild.id) in active_chal:
+                self.instances[mid].solved[ind] = 2
+                active_chal.remove((payload.user_id, self.instances[mid].ctx.guild.id))
+                await update_rating(self.instances[mid].ctx.guild.id, payload.user_id, r + l[0], self.instances[mid].problem)
+        if payload.user_id in self.instances[mid].user_list and str(payload.emoji) == "⚠️" and cfDown:
+            logger.info(f"Challenge cancelled by {payload.user_id} (cf down)")
+            ind = self.instances[mid].user_list.index(payload.user_id)
+            if self.instances[mid].solved[ind] == 0 and (payload.user_id, self.instances[mid].ctx.guild.id) in active_chal:
+                self.instances[mid].solved[ind] = 3
+                active_chal.remove((payload.user_id, self.instances[mid].ctx.guild.id))
 
     @commands.command(help="Get a challenge")
     @global_cooldown()
@@ -94,13 +131,13 @@ class Challenge(commands.Cog):
                 return user.id in user_list and str(reaction.emoji) == "✅" and reaction.message.id == message.id
 
             start_time = asyncio.get_event_loop().time()
+            solved = [0 for i in range(len(user_list))]
 
-            @self.bot.event
-            async def on_raw_reaction_remove(payload):
-                if payload.user_id in user_list and str(payload.emoji) == "✅" and payload.message_id == message.id:
-                    if payload.user_id in ready_users:
-                        ready_users.remove(payload.user_id)
-            
+            self.instances[mid] = Challenge.challenge_instance(ready_users, user_list, solved, ctx, problem, length)
+            ready_users = self.instances[mid].ready_users
+            user_list = self.instances[mid].user_list
+            solved = self.instances[mid].solved
+
             while True:
                 try:
                     reaction, user = await self.bot.wait_for("reaction_add", timeout=30.0 - (asyncio.get_event_loop().time() - start_time), check=check)
@@ -112,6 +149,7 @@ class Challenge(commands.Cog):
                 except asyncio.TimeoutError:
                     embed.description = "Confirmation failed :x:"
                     await message.edit(embed=embed)
+                    self.instances.pop(mid)
                     return
 
             for id in user_list:
@@ -119,6 +157,7 @@ class Challenge(commands.Cog):
                     await ctx.send("One or more users are already in a challenge.")
                     embed.description = "Confirmation failed :x:"
                     await message.edit(embed=embed)
+                    self.instances.pop(mid)
                     return
 
             embed.description = "Challenge confirmed :white_check_mark:"
@@ -128,7 +167,6 @@ class Challenge(commands.Cog):
             
             now = time.time()
             tasks = []
-            solved = [0 for i in range(len(user_list))]
             psum = 0
 
             async def get_u():
@@ -155,24 +193,6 @@ class Challenge(commands.Cog):
             chal_embed.add_field(name="Users", value=await get_u(), inline=False)
             message = await ctx.channel.fetch_message(message.id)
             await message.edit(embed=chal_embed)
-            
-            @self.bot.event
-            async def on_raw_reaction_add(payload):
-                if payload.user_id in user_list and str(payload.emoji) == "❌" and payload.message_id == message.id:
-                    logger.info(f"Challenge cancelled by {payload.user_id}")
-                    ind = user_list.index(payload.user_id)
-                    r = await util.get_rating(ctx.guild.id, payload.user_id)
-                    l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
-                    if solved[ind] == 0 and (payload.user_id, ctx.guild.id) in active_chal:
-                        solved[ind] = 2
-                        active_chal.remove((payload.user_id, ctx.guild.id))
-                        await update_rating(ctx.guild.id, payload.user_id, r + l[0], problem)
-                if payload.user_id in user_list and str(payload.emoji) == "⚠️" and payload.message_id == message.id and cfDown:
-                    logger.info(f"Challenge cancelled by {payload.user_id} (cf down)")
-                    ind = user_list.index(payload.user_id)
-                    if solved[ind] == 0 and (payload.user_id, ctx.guild.id) in active_chal:
-                        solved[ind] = 3
-                        active_chal.remove((payload.user_id, ctx.guild.id))
 
             for i in range(0, length * 60, 10):
                 j = (i // 10) % len(user_list)
@@ -236,8 +256,11 @@ class Challenge(commands.Cog):
             chal_embed.add_field(name="Users", value=u, inline=False)
             message = await ctx.channel.fetch_message(message.id)
             await message.edit(embed=chal_embed)
+            self.instances.pop(mid)
         except Exception as e:
             logger.error(f"Some error: {e}")
+            if mid in self.instances:
+                self.instances.pop(mid)
             if user_list is not None:
                 for id in user_list:
                     if (id, ctx.guild.id) in active_chal:
