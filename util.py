@@ -6,6 +6,95 @@ import logging
 from exceptions import DatabaseError, RequestError
 from pathlib import Path
 
+async def get_solved(egg, handle: str):
+    ret = []
+    new_last = -1
+    async with aiosqlite.connect(path + "bot_data.db") as db:
+        async with db.execute("SELECT * FROM ac WHERE handle = ?", (handle, )) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                logger.info("Small query.")
+                prev_last = row[2] 
+                cur_list = json.loads(row[1])
+                try:
+                    response_data = await egg.codeforces("user.status", {"handle": handle, "from": 1, "count": 100})
+                    
+                    if response_data["status"] != "OK":
+                        return cur_list
+
+                    found = False
+                    first = False
+                    for sub in response_data["result"]:
+                        if first:
+                            new_last = sub["id"]
+                            first = True
+                        if sub["id"] != prev_last:
+                            if sub["verdict"] == "OK" and "contestId" in sub:
+                                cur_list.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
+                        else:
+                            found = True
+                            logger.info("Small query worked.")
+                            ret = cur_list
+                            break
+                    
+                    if not found:
+                        nl = [0]
+                        await large_query(egg, handle, ret, nl)
+                        new_last = nl[0]
+
+                except Exception as e:
+                    logger.error(f"Error when getting submissions: {e}")
+                    raise RequestError(e)
+                    
+            else:
+                logger.info("Large query.")
+                try:
+                    nl = [0]
+                    await large_query(egg, handle, ret, nl)
+                    new_last = nl[0]
+
+                except Exception as e:
+                    logger.error(f"Error when getting submissions: {e}")
+                    raise RequestError(e)
+    # write to db
+    if new_last != -1:
+        ret = list(set(ret))
+        try:
+            async with aiosqlite.connect(path + "bot_data.db") as db:
+                await db.execute("""
+                    INSERT OR REPLACE INTO ac (handle, solved, last_sub) 
+                    VALUES (?, ?, ?)
+                """, (handle, json.dumps(ret), new_last))
+                await db.commit()
+        except aiosqlite.Error as e:
+            logger.error(f"Database error: {e}")
+            raise DatabaseError(e)
+    return ret
+
+async def get_ac(egg, handle: str, start: int, ret: list):
+    try:
+        response_data = await egg.codeforces("user.status", {"handle": handle, "from": start, "count": 5000})
+        for sub in response_data["result"]:
+            if sub["verdict"] == "OK" and "contestId" in sub:
+                ret.append(sub)
+    except Exception as e:
+        logger.error(f"Error when getting submissions: {e}")
+        raise RequestError(e)
+
+async def large_query(egg, handle: str, ret: list, new_last: list):
+    subs = []
+    tasks = [asyncio.create_task(get_ac(egg, handle, 1 + 5000 * k, subs)) for k in range(4)]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for result in results:
+        if isinstance(result, Exception):
+            raise result
+        
+    subs.sort(key=lambda x: x["creationTimeSeconds"], reverse=True)
+    new_last[0] = subs[0]["id"]
+    for sub in subs:
+        ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
+
 logger = logging.getLogger("bot_logger")
 path = str(Path(__file__).parent) + "/"
 

@@ -5,7 +5,8 @@ import util
 import aiosqlite
 import json
 import logging
-from exceptions import DatabaseError
+import random
+from exceptions import DatabaseError, RequestError
 from proxy import CFError
 from main import global_cooldown
 from discord.ext import commands
@@ -59,17 +60,18 @@ class Challenge(commands.Cog):
     @commands.command(help="Get a challenge")
     @global_cooldown()
     async def challenge(self, ctx, 
-                        problem: str = commands.param(description=": Problem for the challenge (e.g. 1000A)"),
+                        problem_or_rating: str = commands.param(description=": Problem for the challenge (e.g. 1000A) or difficulty rating (e.g. 1500)"),
                         length: int = commands.param(description=": Length of the challenge in minutes (40/60/80)"),
                         users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
         global cfDown
         user_list = None
         mid = -1
         try:
-            if not isinstance(problem, str):
-                await ctx.send("Problem must be a string.")
-                return
+            # Validate inputs
             if not isinstance(length, int):
+                await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
+                return
+            if not (length == 40 or length == 60 or length == 80):
                 await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
                 return
             if not isinstance(users, list):
@@ -79,9 +81,59 @@ class Challenge(commands.Cog):
                 await ctx.send("Some inputs were not valid members.")
                 return
 
-            if not (length == 40 or length == 60 or length == 80):
-                await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
-                return
+            # Get list of users including author
+            user_list = [member.id for member in users]
+            user_list.append(ctx.author.id)
+            user_list = list(set(user_list))
+
+            # Check handles and get solved problems for each user
+            
+            await ctx.send("Fetching data, please wait.", delete_after=2)
+
+            solved_problems = set()
+            for user_id in user_list:
+                if not await util.handle_linked(ctx.guild.id, user_id):
+                    await ctx.send("One or more users have not linked a handle.")
+                    return
+                handle = await util.get_handle(ctx.guild.id, user_id)
+                try:
+                    user_solved = await util.get_solved(self.egg, handle)
+                    solved_problems.update(user_solved)
+                except Exception as e:
+                    logger.error(f"Error getting solved problems: {e}")
+                    await ctx.send("Error getting solved problems. Please try again.")
+                    return
+
+            # Check if input is a rating
+            try:
+                rating = int(problem_or_rating)
+                # Get all problems at this rating
+                filtered_problems = [p for p in util.problems if p.get("rating") == rating]
+                if not filtered_problems:
+                    await ctx.send(f"No problems found at rating {rating}.")
+                    return
+                
+                # Filter out problems that any user has solved
+                available_problems = [p for p in filtered_problems if f"{p["contestId"]}{p["index"]}" not in solved_problems]
+                if not available_problems:
+                    await ctx.send(f"No unsolved problems found at rating {rating}.")
+                    return
+                
+                # Randomly select a problem
+                problem_obj = random.choice(available_problems)
+                problem = f"{problem_obj["contestId"]}{problem_obj["index"]}"
+            except ValueError:
+                # Input is a problem ID
+                problem = problem_or_rating
+                if not isinstance(problem, str):
+                    await ctx.send("Problem should be a string.")
+                    return
+                
+                # Check if any user has solved this problem
+                if problem in solved_problems:
+                    await ctx.send(f"One or more users have already solved problem {problem}.")
+                    return
+
             if not problem in util.problem_dict:
                 await ctx.send("Invalid problem. Make sure it is in the correct format (concatenation of contest ID and problem index, for example 1000A).")
                 return
