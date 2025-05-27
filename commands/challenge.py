@@ -60,9 +60,9 @@ class Challenge(commands.Cog):
     @commands.command(help="Get a challenge")
     @global_cooldown()
     async def challenge(self, ctx, 
-                        problem_or_rating: str = commands.param(description=": Problem for the challenge (e.g. 1000A) or difficulty rating (e.g. 1500)"),
+                        problem_or_rating: str = commands.param(description=": Problem (e.g. 1000A) or rating (e.g. 1500)"),
                         length: int = commands.param(description=": Length of the challenge in minutes (40/60/80/100/120)"),
-                        users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
+                        users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag33) (optional)")):
         global cfDown
         user_list = None
         mid = -1
