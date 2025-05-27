@@ -61,7 +61,7 @@ class Challenge(commands.Cog):
     @global_cooldown()
     async def challenge(self, ctx, 
                         problem_or_rating: str = commands.param(description=": Problem for the challenge (e.g. 1000A) or difficulty rating (e.g. 1500)"),
-                        length: int = commands.param(description=": Length of the challenge in minutes (40/60/80)"),
+                        length: int = commands.param(description=": Length of the challenge in minutes (40/60/80/100/120)"),
                         users: commands.Greedy[discord.Member] = commands.param(description=": Participants other than you (e.g. @eggag32 @eggag33) (optional)")):
         global cfDown
         user_list = None
@@ -69,10 +69,10 @@ class Challenge(commands.Cog):
         try:
             # Validate inputs
             if not isinstance(length, int):
-                await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
+                await ctx.send("Invalid length, it should be an integer.")
                 return
-            if not (length == 40 or length == 60 or length == 80):
-                await ctx.send("Invalid length. Valid lengths are 40, 60, and 80 minutes.")
+            if not (length == 40 or length == 60 or length == 80 or length == 100 or length == 120):
+                await ctx.send("Invalid length. Valid lengths are 40, 60, 80, 100, and 120 minutes.")
                 return
             if not isinstance(users, list):
                 await ctx.send("Users must be a list.")
