@@ -1,11 +1,7 @@
 import util
 import discord
-import aiosqlite
-import asyncio
-import json
 import random
 import logging
-from exceptions import DatabaseError, RequestError
 from discord.ext import commands
 from main import global_cooldown
 

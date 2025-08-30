@@ -6,7 +6,7 @@ import aiosqlite
 import json
 import logging
 import random
-from exceptions import DatabaseError, RequestError
+from exceptions import DatabaseError
 from proxy import CFError
 from main import global_cooldown
 from discord.ext import commands
@@ -50,12 +50,14 @@ class Challenge(commands.Cog):
                 self.instances[mid].solved[ind] = 2
                 active_chal.remove((payload.user_id, self.instances[mid].ctx.guild.id))
                 await update_rating(self.instances[mid].ctx.guild.id, payload.user_id, r + l[0], self.instances[mid].problem)
+                self.bot.dispatch(f"update_{mid}", mid)
         if payload.user_id in self.instances[mid].user_list and str(payload.emoji) == "⚠️" and cfDown:
             logger.info(f"Challenge cancelled by {payload.user_id} (cf down)")
             ind = self.instances[mid].user_list.index(payload.user_id)
             if self.instances[mid].solved[ind] == 0 and (payload.user_id, self.instances[mid].ctx.guild.id) in active_chal:
                 self.instances[mid].solved[ind] = 3
                 active_chal.remove((payload.user_id, self.instances[mid].ctx.guild.id))
+                self.bot.dispatch(f"update_{mid}", mid)
 
     @commands.command(help="Get a challenge")
     @global_cooldown()
@@ -219,7 +221,6 @@ class Challenge(commands.Cog):
             
             now = time.time()
             tasks = []
-            psum = 0
 
             async def get_u():
                 u = ""
@@ -246,32 +247,44 @@ class Challenge(commands.Cog):
             message = await ctx.channel.fetch_message(message.id)
             await message.edit(embed=chal_embed)
 
-            for i in range(0, length * 60, 10):
-                j = (i // 10) % len(user_list)
-                if solved[j] == 0:
-                    tasks.append(asyncio.create_task(check_ac(self.egg, ctx.guild.id, user_list[j], problem, length, now, solved, j)))
-                if sum(solved) == psum and i % 30 != 0:
-                    await asyncio.sleep(now + (i + 10) - time.time()) 
-                    continue
-
-                desc = "To give up, react with :x:"
-                if cfDown:
-                    desc += "\nSeems Codeforces is down, react with :warning: to quit challenge without rating change"
-                chal_embed.description = desc
+            async def updating_msg():
+                chal_embed.title = "Updating"
+                chal_embed.description = ""
+                chal_embed.set_field_at(0, name="Time", value="Challenge ended", inline=False)
                 chal_embed.set_field_at(2, name="Users", value=await get_u(), inline=False)
-                await asyncio.sleep(now + (i + 10) - time.time()) 
-                message = await ctx.channel.fetch_message(message.id)
-                await message.edit(embed=chal_embed)
+                msg = await ctx.channel.fetch_message(message.id)
+                await msg.edit(embed=chal_embed)
+
+            async def on_change(mid: int):
+                try:
+                    if min(solved) >= 1:
+                        self.bot.remove_listener(on_change, event_name)
+                        await updating_msg()
+                    else:
+                        desc = "To give up, react with :x:"
+                        if cfDown:
+                            desc += "\nSeems Codeforces is down, react with :warning: to quit challenge without rating change"
+                        chal_embed.description = desc
+                        chal_embed.set_field_at(2, name="Users", value=await get_u(), inline=False)
+                        msg = await ctx.channel.fetch_message(message.id)
+                        await msg.edit(embed=chal_embed)
+                except Exception:
+                    self.bot.remove_listener(on_change, event_name)
+            
+            event_name = f"on_update_{message.id}"
+            self.bot.add_listener(on_change, event_name)
+
+            for i in range(0, length * 60, 5):
+                for j in range(len(user_list)):
+                    if solved[j] == 0:
+                        tasks.append(asyncio.create_task(check_ac(self.bot, mid, self.egg, ctx.guild.id, user_list[j], problem, length, now, solved, j)))
+                
+                await asyncio.sleep(now + (i + 5) - time.time()) 
                 if min(solved) >= 1:
                     break
-                psum = sum(solved)
             
-            chal_embed.title = "Updating"
-            chal_embed.description = ""
-            chal_embed.set_field_at(0, name="Time", value="Challenge ended", inline=False)
-            chal_embed.set_field_at(2, name="Users", value=await get_u(), inline=False)
-            message = await ctx.channel.fetch_message(message.id)
-            await message.edit(embed=chal_embed)
+            self.bot.remove_listener(on_change, event_name)
+            await updating_msg()
             
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -320,9 +333,14 @@ class Challenge(commands.Cog):
             if mid == -1:
                 await ctx.send("Something went wrong.")
             else:
-                chal_embed = discord.Embed(title="Challenge", description="Something went wrong, the challenge is stopped.", color=discord.Color.blue())
-                message = await ctx.channel.fetch_message(mid)
-                await message.edit(embed=chal_embed)
+                try:
+                    chal_embed = discord.Embed(title="Challenge", description="Something went wrong, the challenge is stopped.", color=discord.Color.blue())
+                    message = await ctx.channel.fetch_message(mid)
+                    await message.edit(embed=chal_embed)
+                except:
+                    # send in new message (in case it is gone?)
+                    chal_embed = discord.Embed(title="Challenge", description="Something went wrong, the challenge is stopped.", color=discord.Color.blue())
+                    await ctx.send(embed=chal_embed)
         
 
 async def setup(bot):
@@ -361,19 +379,22 @@ async def sub_in_queue(egg, server_id: int, user_id: int, start_time: int, lengt
         logger.error(f"Error during challenge: {e}")
         return
 
-async def check_ac(egg, server_id: int, user_id: int, problem: str, length: int, start_time: int, solved: list, index: int):
+async def check_ac(bot, mid: int, egg, server_id: int, user_id: int, problem: str, length: int, start_time: int, solved: list, index: int):
+    logger.info(f"Checking if {user_id} has solved {problem}")
     global active_chal
     handle = await util.get_handle(server_id, user_id)
-    if await got_ac(egg, handle, problem, length, start_time):
+    if await got_ac(bot, mid, egg, handle, problem, length, start_time):
         r = await util.get_rating(server_id, user_id)
         l = util.get_rating_changes(r, util.problem_dict[problem]["rating"], length)
         if solved[index] != 0:
             return
         solved[index] = 1
+        bot.dispatch(f"update_{mid}", mid)
         active_chal.remove((user_id, server_id))
         await update_rating(server_id, user_id, r + l[1], problem)
+    logger.info(f"Checked if {user_id} has solved {problem}")
 
-async def got_ac(egg, handle: str, problem: str, length: int, start_time: int):
+async def got_ac(bot, mid: int, egg, handle: str, problem: str, length: int, start_time: int):
     global cfDown
     try:
         response_data = await egg.codeforces("contest.status", {"contestId" : util.problem_dict[problem]["contestId"], "asManager" : "false", "from" : 1, "count" : 100, "handle" : handle})
@@ -393,6 +414,7 @@ async def got_ac(egg, handle: str, problem: str, length: int, start_time: int):
     except Exception as e:
         if isinstance(e, CFError):
             cfDown = True
+            bot.dispatch(f"update_{mid}")
         logger.error(f"Error during challenge: {e}")
         return False
 
