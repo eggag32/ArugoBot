@@ -50,14 +50,14 @@ class Challenge(commands.Cog):
                 self.instances[mid].solved[ind] = 2
                 active_chal.remove((payload.user_id, self.instances[mid].ctx.guild.id))
                 await update_rating(self.instances[mid].ctx.guild.id, payload.user_id, r + l[0], self.instances[mid].problem)
-                self.bot.dispatch(f"update_{mid}", mid)
+                self.bot.dispatch(f"update_{mid}")
         if payload.user_id in self.instances[mid].user_list and str(payload.emoji) == "⚠️" and cfDown:
             logger.info(f"Challenge cancelled by {payload.user_id} (cf down)")
             ind = self.instances[mid].user_list.index(payload.user_id)
             if self.instances[mid].solved[ind] == 0 and (payload.user_id, self.instances[mid].ctx.guild.id) in active_chal:
                 self.instances[mid].solved[ind] = 3
                 active_chal.remove((payload.user_id, self.instances[mid].ctx.guild.id))
-                self.bot.dispatch(f"update_{mid}", mid)
+                self.bot.dispatch(f"update_{mid}")
 
     @commands.command(help="Get a challenge")
     @global_cooldown()
@@ -255,7 +255,7 @@ class Challenge(commands.Cog):
                 msg = await ctx.channel.fetch_message(message.id)
                 await msg.edit(embed=chal_embed)
 
-            async def on_change(mid: int):
+            async def on_change():
                 try:
                     if min(solved) >= 1:
                         self.bot.remove_listener(on_change, event_name)
@@ -380,7 +380,6 @@ async def sub_in_queue(egg, server_id: int, user_id: int, start_time: int, lengt
         return
 
 async def check_ac(bot, mid: int, egg, server_id: int, user_id: int, problem: str, length: int, start_time: int, solved: list, index: int):
-    logger.info(f"Checking if {user_id} has solved {problem}")
     global active_chal
     handle = await util.get_handle(server_id, user_id)
     if await got_ac(bot, mid, egg, handle, problem, length, start_time):
@@ -389,10 +388,9 @@ async def check_ac(bot, mid: int, egg, server_id: int, user_id: int, problem: st
         if solved[index] != 0:
             return
         solved[index] = 1
-        bot.dispatch(f"update_{mid}", mid)
+        bot.dispatch(f"update_{mid}")
         active_chal.remove((user_id, server_id))
         await update_rating(server_id, user_id, r + l[1], problem)
-    logger.info(f"Checked if {user_id} has solved {problem}")
 
 async def got_ac(bot, mid: int, egg, handle: str, problem: str, length: int, start_time: int):
     global cfDown
