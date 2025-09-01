@@ -297,7 +297,7 @@ class Challenge(commands.Cog):
 
             for j in range(len(user_list)):
                 if solved[j] == 0:
-                    await check_ac(self.egg, ctx.guild.id, user_list[j], problem, length, now, solved, j)
+                    await check_ac(self.bot, mid, self.egg, ctx.guild.id, user_list[j], problem, length, now, solved, j)
                     if solved[j] == 0:
                         r = await util.get_rating(ctx.guild.id, user_list[j])
                         if (user_list[j], ctx.guild.id) in active_chal:
