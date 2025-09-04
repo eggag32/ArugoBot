@@ -401,6 +401,7 @@ async def got_ac(bot, mid: int, egg, handle: str, problem: str, length: int, sta
             return False
         
         cfDown = False
+        bot.dispatch(f"update_{mid}")
 
         for o in response_data["result"]:
             if problem == str(str(o["problem"]["contestId"]) + o["problem"]["index"]) and o["verdict"] == "OK":
