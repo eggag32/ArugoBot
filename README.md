@@ -1,4 +1,4 @@
-# ArugoBot
+# ArugoBot (YOU CAN ONLY USE THIS IF YOU HAVE A SINGLE SOLVE!)
 When my friends and I were practicing for competitive programming contests we used [Arugo](https://github.com/phattd15/arugo) quite a bit, and it was a lot of fun.
 After some time it stopped being hosted (I rehosted it [here](https://eggag33.pythonanywhere.com/) and it seems to work though).
 So I decided to write a Discord bot with similar functionality: my hope is that it makes it more convenient and fun to practice with others.
