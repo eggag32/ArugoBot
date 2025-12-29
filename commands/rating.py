@@ -56,7 +56,10 @@ class Rating(commands.Cog):
                     return [i + 1 for i in range(n)]
                 
                 step = n // 10
-                step -= step % 10
+                if step > 10:
+                    step -= step % 10
+                elif step % 10 != 0:
+                    step += 10 - (step % 10)
 
                 return [1, *range(step, n + 1, step)]
 
