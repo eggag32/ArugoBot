@@ -23,11 +23,11 @@ async def get_solved(egg, handle: str):
                         return cur_list
 
                     found = False
-                    first = False
+                    first = True
                     for sub in response_data["result"]:
                         if first:
                             new_last = sub["id"]
-                            first = True
+                            first = False
                         if sub["id"] != prev_last:
                             if sub["verdict"] == "OK" and "contestId" in sub:
                                 cur_list.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
@@ -91,7 +91,10 @@ async def large_query(egg, handle: str, ret: list, new_last: list):
             raise result
         
     subs.sort(key=lambda x: x["creationTimeSeconds"], reverse=True)
-    new_last[0] = subs[0]["id"]
+    if len(subs) > 0:
+        new_last[0] = subs[0]["id"]
+    else:
+        new_last[0] = -1
     for sub in subs:
         ret.append(f"{sub["problem"]["contestId"]}{sub["problem"]["index"]}")
 

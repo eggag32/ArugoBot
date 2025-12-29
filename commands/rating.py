@@ -50,7 +50,17 @@ class Rating(commands.Cog):
             l = [0, 1200, 1400, 1600, 1900, 2100, 2300, 2400, 2600, 3000]
             t = [i for i in l if i >= min(pY) - 100 and i <= max(pY) + 100]
             ax.set_yticks(t)
-            ax.set_xticks(range(1, len(pY) + 1, 1))
+
+            def get_ticks(n):
+                if n <= 10:
+                    return [i + 1 for i in range(n)]
+                
+                step = n // 10
+                step -= step % 10
+
+                return [1, *range(step, n + 1, step)]
+
+            ax.set_xticks(get_ticks(len(pY)))
             ax.set_title(f"Rating history of {name}")
             img_buffer = io.BytesIO()
             plt.savefig(img_buffer, format="png", bbox_inches="tight")
