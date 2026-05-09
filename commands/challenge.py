@@ -167,7 +167,7 @@ class Challenge(commands.Cog):
             # then get all their ratings (and predicted changes) and create an embed
             embed = discord.Embed(title="Confirm", description="React with :white_check_mark: within 30 seconds to confirm", color=discord.Color.blue())
             embed.add_field(name="Time", value=util.format_time(length*60), inline=False)
-            p = f"[{util.problem_dict[problem]["index"]}. {util.problem_dict[problem]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[problem]["contestId"]}/{util.problem_dict[problem]["index"]})"
+            p = f"[{util.problem_dict[problem]["index"]}. {util.problem_dict[problem]["name"]}](https://codeforces.com/contest/{util.problem_dict[problem]["contestId"]}/problem/{util.problem_dict[problem]["index"]})"
             embed.add_field(name="Problem", value=p, inline=False)
             u = ""
             for i in range(len(user_list)):
@@ -306,7 +306,7 @@ class Challenge(commands.Cog):
                             await update_rating(ctx.guild.id, user_list[j], r + l[0], problem)
             
             chal_embed = discord.Embed(title="Challenge results", description="", color=discord.Color.blue())
-            p = f"[{util.problem_dict[problem]["index"]}. {util.problem_dict[problem]["name"]}](https://codeforces.com/problemset/problem/{util.problem_dict[problem]["contestId"]}/{util.problem_dict[problem]["index"]})"
+            p = f"[{util.problem_dict[problem]["index"]}. {util.problem_dict[problem]["name"]}](https://codeforces.com/contest/{util.problem_dict[problem]["contestId"]}/problem/{util.problem_dict[problem]["index"]})"
             chal_embed.add_field(name="Problem", value=p, inline=False)
             u = ""
             for j in range(len(user_list)):
